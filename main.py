@@ -200,7 +200,8 @@ def save_to_history(entry):
 async def generate_tts(
     text: str = Form(...),
     audio_prompt: UploadFile = File(None),
-    voice_id: str = Form(None), # Option to use a previously saved voice
+    voice_id: str = Form(None),
+    language: str = Form("en"), # Default to English if not specified
     username: str = Depends(authenticate)
 ):
     m = get_model()
@@ -220,13 +221,20 @@ async def generate_tts(
         voice_path = os.path.join(VOICES_DIR, f"{voice_id}.wav")
         if os.path.exists(voice_path):
             prompt_path = voice_path
+            
+            # Auto-detect language from metadata if not explicitly provided
+            if language == "en": # Only override default
+                meta = get_voice_metadata().get(voice_id, {})
+                if meta.get("language"):
+                    language = meta.get("language")
         else:
             raise HTTPException(status_code=404, detail=f"Voice clone '{voice_id}' not found in local storage.")
     
     try:
         if prompt_path:
             # Generate speech using the reference voice (cloning)
-            wav = m.generate(text, audio_prompt_path=prompt_path)
+            # Pass language to fix accent issues (e.g. 'es' for Spanish)
+            wav = m.generate(text, audio_prompt_path=prompt_path, language=language)
         else:
             return {"error": "audio_prompt or voice_id is required for Chatterbox-Turbo"}
 
@@ -333,9 +341,114 @@ async def list_voices(username: str = Depends(authenticate)):
 async def get_history(username: str = Depends(authenticate)):
     if not os.path.exists(HISTORY_FILE):
         return []
-    with open(HISTORY_FILE, "r") as f:
-        history = json.load(f)
-    return history
+    try:
+        with open(HISTORY_FILE, "r") as f:
+            history = json.load(f)
+        # Sort by timestamp desc
+        history.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        return history
+    except:
+        return []
+
+@app.delete("/history")
+async def delete_history(ids: list[str] = Form(None), delete_all: bool = Form(False), username: str = Depends(authenticate)):
+    """Delete history entries. Can delete specific IDs or all history."""
+    if not os.path.exists(HISTORY_FILE):
+        return {"status": "History empty"}
+        
+    try:
+        with open(HISTORY_FILE, "r") as f:
+            history = json.load(f)
+            
+        if delete_all:
+            # Remove all files
+            for entry in history:
+                fpath = os.path.join(STORAGE_DIR, entry["filename"])
+                if os.path.exists(fpath):
+                    os.remove(fpath)
+            history = []
+        elif ids:
+            # Delete specific files and entries
+            new_history = []
+            for entry in history:
+                if entry["id"] in ids:
+                    fpath = os.path.join(STORAGE_DIR, entry["filename"])
+                    if os.path.exists(fpath):
+                        os.remove(fpath)
+                else:
+                    new_history.append(entry)
+            history = new_history
+            
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(history, f, indent=4)
+            
+        return {"status": "History updated", "remaining_count": len(history)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error managing history: {str(e)}")
+
+@app.delete("/voices/{voice_id}")
+async def delete_voice(voice_id: str, username: str = Depends(authenticate)):
+    """Delete a generated voice clone."""
+    voice_path = os.path.join(VOICES_DIR, f"{voice_id}.wav")
+    
+    if not os.path.exists(voice_path):
+        raise HTTPException(status_code=404, detail="Voice not found")
+        
+    try:
+        os.remove(voice_path)
+        
+        # Update metadata
+        metadata = get_voice_metadata()
+        if voice_id in metadata:
+            del metadata[voice_id]
+            save_voice_metadata(metadata)
+            
+        return {"status": f"Voice '{voice_id}' deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting voice: {str(e)}")
+
+@app.put("/voices/{voice_id}")
+async def update_voice(
+    voice_id: str, 
+    new_name: str = Form(None),
+    language: str = Form(None),
+    region: str = Form(None), 
+    description: str = Form(None),
+    username: str = Depends(authenticate)
+):
+    """Rename a voice or update its metadata."""
+    old_path = os.path.join(VOICES_DIR, f"{voice_id}.wav")
+    
+    if not os.path.exists(old_path):
+        raise HTTPException(status_code=404, detail="Voice not found")
+        
+    metadata = get_voice_metadata()
+    if voice_id not in metadata:
+        metadata[voice_id] = {"name": voice_id, "filename": f"{voice_id}.wav"}
+        
+    # Update fields
+    if language: metadata[voice_id]["language"] = language
+    if region: metadata[voice_id]["region"] = region
+    if description: metadata[voice_id]["description"] = description
+    
+    # Handle rename
+    if new_name and new_name != voice_id:
+        safe_new_name = "".join([c for c in new_name if c.isalnum() or c in (" ", "-", "_")]).strip()
+        new_path = os.path.join(VOICES_DIR, f"{safe_new_name}.wav")
+        
+        if os.path.exists(new_path):
+             raise HTTPException(status_code=400, detail=f"Voice name '{safe_new_name}' already exists")
+             
+        os.rename(old_path, new_path)
+        
+        # Move metadata to new key
+        metadata[safe_new_name] = metadata.pop(voice_id)
+        metadata[safe_new_name]["name"] = safe_new_name
+        metadata[safe_new_name]["filename"] = f"{safe_new_name}.wav"
+        
+    save_voice_metadata(metadata)
+    
+    return {"status": "Voice updated", "metadata": metadata.get(new_name if new_name else voice_id)}
 
 @app.get("/download/{filename}")
 async def download_file(filename: str, username: str = Depends(authenticate)):
@@ -393,7 +506,9 @@ async def demo_tts(
     
     try:
         # Generate speech using the selected voice
-        wav = m.generate(text, audio_prompt_path=voice_path)
+        # Pass language if provided, otherwise default to "en"
+        target_lang = language if language else "en"
+        wav = m.generate(text, audio_prompt_path=voice_path, language=target_lang)
         
         out_id = str(uuid.uuid4())
         out_filename = f"demo_{out_id}.wav"

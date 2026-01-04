@@ -45,5 +45,15 @@
         "language": "es",
         "region": "CL",
         "description": ""
+    },
+    "Jorgete": {
+        "name": "Jorgete",
+        "filename": "Jorgete.wav",
+        "language": "es",
+        "region": "CL",
+        "gender": "female",
+        "description": null,
+        "uploaded_by": "upfint",
+        "uploaded_at": "2026-01-04T18:51:18.562570"
     }
 }

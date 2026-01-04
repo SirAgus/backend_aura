@@ -112,5 +112,175 @@
         "language_id": "es",
         "timestamp": "2026-01-04T18:20:50.756016",
         "user": "upfint"
+    },
+    {
+        "id": "c8821ded-dbab-42c8-a51b-e170a89f08bb",
+        "text": "Tortuga Fea Pareces un taco, AJAJAJAJJAJJA",
+        "filename": "gen_c8821ded-dbab-42c8-a51b-e170a89f08bb.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T18:42:24.406965",
+        "user": "upfint"
+    },
+    {
+        "id": "65e4a280-67c0-405c-98ab-9d57ae61b02b",
+        "text": "Agustin, te voy a dejar la casa de herencia jajaja quiero pansito",
+        "filename": "gen_65e4a280-67c0-405c-98ab-9d57ae61b02b.wav",
+        "voice_used": "jorgete",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T18:49:29.256905",
+        "user": "upfint"
+    },
+    {
+        "id": "078188f6-aa67-4cad-8554-48dfd7d1c18e",
+        "text": "Agustin, voy a ir para tuca el martes, dame plata y pan",
+        "filename": "gen_078188f6-aa67-4cad-8554-48dfd7d1c18e.wav",
+        "voice_used": "Jorgete",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T18:52:10.006239",
+        "user": "upfint"
+    },
+    {
+        "id": "835c2378-3aa2-4c0a-9568-ca0e7d43cff5",
+        "text": "Agust\u00edn, ahora s\u00ed me escuchas bien.",
+        "filename": "gen_835c2378-3aa2-4c0a-9568-ca0e7d43cff5.wav",
+        "voice_used": "Jorgete",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:04:28.443727",
+        "user": "upfint"
+    },
+    {
+        "id": "a99ce98a-4e45-457d-9850-25f148a5e5b4",
+        "text": "Agust\u00edn, ahora s\u00ed me escuchas bien.",
+        "filename": "gen_a99ce98a-4e45-457d-9850-25f148a5e5b4.wav",
+        "voice_used": "Jorgete",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:04:54.071320",
+        "user": "upfint"
+    },
+    {
+        "id": "ed2bb6b7-8c09-4fda-af9d-eabd9aaecf66",
+        "text": "Agust\u00edn, ahora s\u00ed me escuchas bien. Ya no me quedo en silencio po.",
+        "filename": "gen_ed2bb6b7-8c09-4fda-af9d-eabd9aaecf66.wav",
+        "voice_used": "Jorgete",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:05:42.629347",
+        "user": "upfint"
+    },
+    {
+        "id": "eb131e09-c50b-40d8-96e6-f59c6cc6ee85",
+        "text": "Agust\u00edn, ahora s\u00ed me escuchas bien. Ya no me quedo en silencio po.",
+        "filename": "gen_eb131e09-c50b-40d8-96e6-f59c6cc6ee85.wav",
+        "voice_used": "Jorgete",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:08:14.664472",
+        "user": "upfint"
+    },
+    {
+        "id": "0c7c909b-e885-43c4-bc9e-f2edafc4a44d",
+        "text": "Agust\u00edn, probando estabilidad m\u00e1xima para que no se corte el audio.",
+        "filename": "gen_0c7c909b-e885-43c4-bc9e-f2edafc4a44d.wav",
+        "voice_used": "Jorgete",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:09:32.122758",
+        "user": "upfint"
+    },
+    {
+        "id": "08455441-1109-4b24-930d-48a2b43ccb1b",
+        "text": "Quiero pannnnn JAJAJAJAJJAJA",
+        "filename": "gen_08455441-1109-4b24-930d-48a2b43ccb1b.wav",
+        "voice_used": "Jorgete",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:17:35.458497",
+        "user": "upfint"
+    },
+    {
+        "id": "becebae0-0f54-4ceb-b7f9-f8a931f4e5ce",
+        "text": "Quiero pannnnn JAJAJAJAJJAJA",
+        "filename": "gen_becebae0-0f54-4ceb-b7f9-f8a931f4e5ce.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:18:05.794712",
+        "user": "upfint"
+    },
+    {
+        "id": "a2ee2abf-119e-47bd-90da-0a80d8be22cc",
+        "text": "Quiero pan hahahha tortuga fea",
+        "filename": "gen_a2ee2abf-119e-47bd-90da-0a80d8be22cc.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:19:01.815412",
+        "user": "upfint"
+    },
+    {
+        "id": "ea3a0c27-ca49-4cfa-a8a5-95630eedaa0c",
+        "text": "aaaaaaa soy genial 123",
+        "filename": "gen_ea3a0c27-ca49-4cfa-a8a5-95630eedaa0c.wav",
+        "voice_used": "agus",
+        "mode": "turbo",
+        "language_id": "en",
+        "timestamp": "2026-01-04T19:21:32.886360",
+        "user": "upfint"
+    },
+    {
+        "id": "b79fec77-06c2-461d-b434-5a1180376996",
+        "text": "aaaaaaa soy genial 123",
+        "filename": "gen_b79fec77-06c2-461d-b434-5a1180376996.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:21:55.591543",
+        "user": "upfint"
+    },
+    {
+        "id": "4b2fbffc-afe4-4bd9-9f6d-cdc2723a722d",
+        "text": "aaaaaaa soy genial 1 2 3",
+        "filename": "gen_4b2fbffc-afe4-4bd9-9f6d-cdc2723a722d.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:22:24.216255",
+        "user": "upfint"
+    },
+    {
+        "id": "f15ca17e-1ab0-4da9-adc8-669b254f9150",
+        "text": "1 2 3 esto es una prueba jaja",
+        "filename": "gen_f15ca17e-1ab0-4da9-adc8-669b254f9150.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:23:06.305554",
+        "user": "upfint"
+    },
+    {
+        "id": "0ec32cd9-553f-45f2-bc11-d7c69160f530",
+        "text": "con finacego mi vida a cambiado en 360\u00b0 ahora puedo correr y gritar, gracias Dios",
+        "filename": "gen_0ec32cd9-553f-45f2-bc11-d7c69160f530.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:24:00.418726",
+        "user": "upfint"
+    },
+    {
+        "id": "772c74c1-1c2a-4b96-a182-eb7f36ecbfb7",
+        "text": "con \"finance\" \"go\" mi vida a cambiado en 360 grados, ahora puedo correr y gritar, me compre un iphone ultima generacion, gracias Dios",
+        "filename": "gen_772c74c1-1c2a-4b96-a182-eb7f36ecbfb7.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-04T19:25:20.898856",
+        "user": "upfint"
     }
 ]

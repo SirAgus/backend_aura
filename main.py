@@ -177,6 +177,55 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
 # Load the models (cached)
 models = {"turbo": None, "multilingual": None}
 
+def process_text_tags(text, current_params):
+    """
+    Parses tags like [risa], [happy] and modifies the text or parameters.
+    Returns: (modified_text, modified_params)
+    """
+    import re
+    
+    # 1. Onomatopoeias (Sound Effects)
+    replacements = {
+        r"\[risa\]": " ¡jajaja! ",
+        r"\[laugh\]": " haha! ",
+        r"\[laught\]": " haha! ", # Typos support
+        r"\[jaja\]": " ¡ja ja ja! ",
+        r"\[suspiro\]": " ...aaaaay... ",
+        r"\[sigh\]": " ...ahh... ",
+        r"\[tos\]": " cof cof ",
+        r"\[beso\]": " mua ",
+        r"\[pausa\]": " ... ",
+    }
+    
+    for pattern, replacement in replacements.items():
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+
+    # 2. Style Tags (Global adjustment heuristic)
+    # Check if text starts with a style tag to adjust global parameters
+    # Note: Only works if the tag is at the start or dominant
+    
+    if re.search(r"\[(feliz|happy)\]", text, re.IGNORECASE):
+        # Happy = High exaggeration, higher pitch variation
+        current_params["exaggeration"] = max(current_params.get("exaggeration", 0.5), 1.2)
+        current_params["temperature"] = max(current_params.get("temperature", 0.8), 0.9)
+        text = re.sub(r"\[(feliz|happy)\]", "", text, flags=re.IGNORECASE)
+        
+    if re.search(r"\[(triste|sad)\]", text, re.IGNORECASE):
+        # Sad = Low exaggeration, slower, stable
+        current_params["exaggeration"] = 0.2
+        current_params["temperature"] = 0.6
+        current_params["cfg_weight"] = 0.8 # More constraint
+        text = re.sub(r"\[(triste|sad)\]", "", text, flags=re.IGNORECASE)
+
+    if re.search(r"\[(serio|serious)\]", text, re.IGNORECASE):
+        # Serious = Low temp, neutral exaggeration
+        current_params["exaggeration"] = 0.4
+        current_params["temperature"] = 0.5
+        current_params["cfg_weight"] = 0.9
+        text = re.sub(r"\[(serio|serious)\]", "", text, flags=re.IGNORECASE)
+
+    return text.strip(), current_params
+
 def get_model(mode="turbo"):
     global models
     
@@ -249,11 +298,22 @@ async def generate_tts(
     language: str = Form("en"), # Language for voice selection (reference sample)
     mode: str = Form("turbo"), # "turbo" or "multilingual"
     language_id: str = Form("es"), # Language for the model (for multilingual mode)
+    temperature: float = Form(0.8), # Higher = more emotional/varied, Lower = more stable
+    exaggeration: float = Form(0.5), # Higher = more expressive
+    cfg: float = Form(0.6), # Slightly higher for more stability
+    repetition_penalty: float = Form(1.15), # Balanced for Spanish
+    top_p: float = Form(0.9), # Nucleus sampling. Lower = more "stable" voice qualities.
+    min_p: float = Form(0.05), # Minimum probability filter.
     username: str = Depends(authenticate)
 ):
     m = get_model(mode)
     from chatterbox.tts_turbo import ChatterboxTurboTTS
     actual_mode = "turbo" if isinstance(m, ChatterboxTurboTTS) else "multilingual"
+
+    print(f"🚀 TTS Request: Mode [{actual_mode}], Language ID [{language_id}], Voice ID [{voice_id if voice_id else 'upload'}]")
+    if actual_mode == "turbo" and language == "es":
+        print("💡 Tip: Usando modo 'turbo' con español. Para mejor acento, usa mode='multilingual'.")
+
 
 
     
@@ -269,27 +329,39 @@ async def generate_tts(
         should_cleanup_prompt = True
     elif voice_id:
         # Use a stored voice clone from the local 'voices' directory
-        voice_path = os.path.join(VOICES_DIR, f"{voice_id}.wav")
+        # Support both 'Jorgete' and 'Jorgete.wav' styles
+        clean_voice_id = voice_id.replace(".wav", "")
+        voice_path = os.path.join(VOICES_DIR, f"{clean_voice_id}.wav")
+        
         if os.path.exists(voice_path):
             prompt_path = voice_path
-            
-            # Auto-detect language from metadata if not explicitly provided
-            if language == "en": # Only override default
-                meta = get_voice_metadata().get(voice_id, {})
-                if meta.get("language"):
-                    language = meta.get("language")
+            print(f"✅ Using stored voice: {voice_path}")
         else:
-            raise HTTPException(status_code=404, detail=f"Voice clone '{voice_id}' not found in local storage.")
+            # Try to find by name in metadata if filename mismatch
+            metadata = get_voice_metadata()
+            if clean_voice_id in metadata:
+                v_filename = metadata[clean_voice_id].get("filename")
+                voice_path = os.path.join(VOICES_DIR, v_filename)
+                if os.path.exists(voice_path):
+                    prompt_path = voice_path
+                    print(f"✅ Using stored voice (from metadata): {voice_path}")
+            
+            if not prompt_path:
+                raise HTTPException(status_code=404, detail=f"Voice clone '{voice_id}' not found in local storage.")
     
     try:
         if prompt_path:
             # Generate speech using the reference voice (cloning)
             if actual_mode == "multilingual":
-                # Multilingual model requires language_id
-                wav = m.generate(text, audio_prompt_path=prompt_path, language_id=language_id)
+                # Multilingual model parameters
+                wav = m.generate(processed_text, audio_prompt_path=prompt_path, language_id=language_id, 
+                                 temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
+                                 repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
             else:
-                # Turbo model determines language by reference voice (or defaults to en)
-                wav = m.generate(text, audio_prompt_path=prompt_path)
+                # Turbo model parameters
+                wav = m.generate(processed_text, audio_prompt_path=prompt_path, 
+                                 temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
+                                 repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
         else:
             return {"error": "audio_prompt or voice_id is required for Chatterbox"}
 
@@ -541,25 +613,43 @@ async def demo_tts(request: Request):
         language = request.query_params.get("language")
         region = request.query_params.get("region")
         mode = request.query_params.get("mode", "turbo")
+        voice_id_req = request.query_params.get("voice_id")
         language_id = request.query_params.get("language_id", "es")
+        temperature = float(request.query_params.get("temperature", 0.8))
+        exaggeration = float(request.query_params.get("exaggeration", 0.5))
+        cfgValue = float(request.query_params.get("cfg", 0.5))
+        rep_p = float(request.query_params.get("repetition_penalty", 1.2))
+        t_p = float(request.query_params.get("top_p", 0.9))
     else: # POST
         form_data = await request.form()
         text = form_data.get("text", "This is a voice cloning demo.")
         language = form_data.get("language")
         region = form_data.get("region")
         mode = form_data.get("mode", "turbo")
+        voice_id_req = form_data.get("voice_id")
         language_id = form_data.get("language_id", "es")
+        temperature = float(form_data.get("temperature", 0.8))
+        exaggeration = float(form_data.get("exaggeration", 0.5))
+        cfgValue = float(form_data.get("cfg", 0.5))
+        rep_p = float(form_data.get("repetition_penalty", 1.2))
+        t_p = float(form_data.get("top_p", 0.9))
 
     m = get_model(mode)
     from chatterbox.tts_turbo import ChatterboxTurboTTS
     actual_mode = "turbo" if isinstance(m, ChatterboxTurboTTS) else "multilingual"
+
+    print(f"🚀 Demo Request: Mode [{actual_mode}], Language [{language}], Language ID [{language_id}]")
+    if actual_mode == "turbo" and language == "es":
+        print("💡 Tip: Demo en español usando modo 'turbo'. Prueba con mode='multilingual' para acento nativo.")
 
 
     
     # Find best voice based on criteria
     voice_id = "female_english" # Default fallback
     
-    if language or region:
+    if voice_id_req:
+        voice_id = voice_id_req
+    elif language or region:
         metadata = get_voice_metadata()
         best_match = None
         
@@ -601,9 +691,13 @@ async def demo_tts(request: Request):
         # Generate speech using the selected voice
         # Turbo model determines language by reference voice
         if actual_mode == "multilingual":
-            wav = m.generate(text, audio_prompt_path=voice_path, language_id=language_id)
+            wav = m.generate(processed_text, audio_prompt_path=voice_path, language_id=language_id, 
+                             temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
+                             repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"] if "min_p" in params else 0.05)
         else:
-            wav = m.generate(text, audio_prompt_path=voice_path)
+            wav = m.generate(processed_text, audio_prompt_path=voice_path, 
+                             temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
+                             repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"] if "min_p" in params else 0.05)
 
 
 

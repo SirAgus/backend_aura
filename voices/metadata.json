@@ -1,0 +1,49 @@
+{
+    "female_english": {
+        "name": "female_english",
+        "filename": "female_english.wav",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T15:17:08.016757",
+        "language": "en",
+        "gender": "female",
+        "region": "US",
+        "description": "Default English Female"
+    },
+    "male_english": {
+        "name": "male_english",
+        "filename": "male_english.wav",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T15:17:08.016766",
+        "language": "en",
+        "gender": "male",
+        "region": "US",
+        "description": "Default English Male"
+    },
+    "agus": {
+        "name": "agus",
+        "filename": "agus.wav",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T15:17:08.016757",
+        "language": "es",
+        "gender": "male",
+        "region": "CL",
+        "description": "Spanish Male Voice (Chile)"
+    },
+    "agus_latin": {
+        "name": "agus_latin",
+        "filename": "agus latin.wav",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T15:17:08.016766",
+        "language": "es",
+        "gender": "male",
+        "region": "CL",
+        "description": "Spanish Latin Male Voice (Chile)"
+    },
+    "agus latin": {
+        "name": "agus latin",
+        "filename": "agus latin.wav",
+        "language": "es",
+        "region": "CL",
+        "description": ""
+    }
+}

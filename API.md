@@ -14,7 +14,7 @@ Las credenciales se configuran en el archivo `.env`:
 
 ```env
 API_USERNAME=admin
-API_PASSWORD=admin_password
+API_PASSWORD=upfint2001
 ```
 
 ### Cómo autenticarse
@@ -45,9 +45,99 @@ const response = await fetch('http://localhost:8000/endpoint', {
 
 ---
 
+## 🌍 Soporte de Español
+
+### Modelo TTS Disponible
+
+Solo está disponible **ChatterboxTurboTTS** en la versión actual del paquete:
+
+- **Funcionamiento**: Idioma determinado por voz de referencia
+- **Español**: ✅ Funciona con voces chilenas (`agus`, `agus_latin`)
+- **Parámetros**: `language` solo selecciona voz apropiada
+- **Ventaja**: Siempre disponible y funcional
+
+### Nota sobre Soporte Multilingüe
+
+El modelo multilingüe (`ChatterboxMultilingualTTS`) **no está disponible** en `chatterbox-tts 0.1.6`. Solo está incluido el modelo Turbo, que funciona correctamente con voces de referencia para español.
+
+### Mejorar Acento Español
+
+Para mejor acento, sube voces más naturales:
+
+```bash
+# Subir voz española más natural
+curl -X POST "http://localhost:8000/voices/upload" \
+  -u admin:upfint2001 \
+  -F "name=voz_madrid" \
+  -F "language=es" \
+  -F "region=ES" \
+  -F "file=@voz_espanol.wav"
+```
+
+### Consejos para español natural:
+
+1. **Texto limpio**: Usa tildes, puntuación correcta y evita mezclas de idiomas
+2. **Voces apropiadas**: Elige voces chilenas, argentinas o españolas según el acento deseado
+3. **Parámetro language**: Útil especialmente con el modelo multilingüe para forzar pronunciación
+
+---
+
 ## 📡 Endpoints
 
-### 1. Health Check
+### 1. Login
+
+**Endpoint:** `POST /login`  
+**Autenticación:** ❌ No requerida (usa HTTP Basic Auth en la petición)  
+**Descripción:** Verifica las credenciales de usuario
+
+#### Request
+
+```bash
+curl -u admin:upfint2001 http://localhost:8000/login
+```
+
+#### Python Example
+
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:8000/login",
+    auth=("admin", "upfint2001")
+)
+
+result = response.json()
+if result["success"]:
+    print("Login exitoso!")
+else:
+    print("Credenciales inválidas")
+```
+
+#### Response - Login Exitoso
+
+**Content-Type:** `application/json`  
+**Status Code:** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": "admin"
+}
+```
+
+#### Response - Login Fallido
+
+```json
+{
+  "success": false,
+  "message": "Invalid credentials"
+}
+```
+
+---
+
+### 2. Health Check
 
 **Endpoint:** `GET /`  
 **Autenticación:** ❌ No requerida  
@@ -62,8 +152,9 @@ curl http://localhost:8000/
 ```json
 {
   "status": "Voice Backend Running",
-  "model": "ResembleAI/chatterbox-turbo",
-  "auth": "enabled"
+  "model": "ResembleAI/chatterbox-turbo or chatterbox-multilingual",
+  "auth": "enabled",
+  "tts_model": "turbo or multilingual"
 }
 ```
 
@@ -71,23 +162,32 @@ curl http://localhost:8000/
 
 ---
 
-### 2. Demo TTS (Sin autenticación)
+### 3. Demo TTS (Sin autenticación)
 
-**Endpoint:** `POST /demo`  
+**Endpoint:** `GET /demo` o `POST /demo`  
 **Autenticación:** ❌ No requerida  
-**Descripción:** Genera audio usando la voz femenina por defecto. Ideal para pruebas rápidas.
+**Descripción:** Genera audio temporal sin guardar archivos. Ideal para pruebas rápidas.
 
 #### Request Parameters
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `text` | Form Data | ✅ Sí | Texto a sintetizar (máx. recomendado: 500 caracteres) |
+| `text` | Query/Form | ✅ Sí | Texto a sintetizar (soporte nativo para español) |
+| `language` | Query/Form | ❌ No | Idioma para selección de voz y pronunciación (es/en). Con modelo multilingüe, afecta la pronunciación directamente |
+| `voice_id` | Query | ❌ No | ID específico de voz a usar |
 
-#### Request Example
+#### GET Request Example
+
+```bash
+curl "http://localhost:8000/demo?text=Hola%20mundo&language=es" -o demo.wav
+```
+
+#### POST Request Example
 
 ```bash
 curl -X POST "http://localhost:8000/demo" \
-  -F "text=Hello, this is a demo of voice synthesis" \
+  -F "text=Hola mundo" \
+  -F "language=es" \
   --output demo.wav
 ```
 
@@ -96,7 +196,13 @@ curl -X POST "http://localhost:8000/demo" \
 **Content-Type:** `audio/wav`  
 **Status Code:** `200 OK`
 
-Retorna directamente el archivo de audio WAV.
+Retorna directamente el audio WAV **sin guardarlo en disco**.
+
+#### Notas Importantes
+
+- **No se guarda** el audio generado ni el historial
+- Es **temporal** - solo para preview inmediata
+- Para guardar audio permanentemente, usa `/generate-tts`
 
 #### Error Responses
 
@@ -107,7 +213,7 @@ Retorna directamente el archivo de audio WAV.
 
 ---
 
-### 3. Generate TTS
+### 4. Generate TTS
 
 **Endpoint:** `POST /generate-tts`  
 **Autenticación:** ✅ Requerida (Basic Auth)  
@@ -127,7 +233,7 @@ Retorna directamente el archivo de audio WAV.
 
 ```bash
 curl -X POST "http://localhost:8000/generate-tts" \
-  -u admin:admin_password \
+  -u admin:upfint2001 \
   -F "text=This is a test with a saved voice" \
   -F "voice_id=female_english" \
   --output output.wav
@@ -137,7 +243,7 @@ curl -X POST "http://localhost:8000/generate-tts" \
 
 ```bash
 curl -X POST "http://localhost:8000/generate-tts" \
-  -u admin:admin_password \
+  -u admin:upfint2001 \
   -F "text=This is a test with voice cloning" \
   -F "audio_prompt=@my_voice_sample.wav" \
   --output output.wav
@@ -151,7 +257,7 @@ import requests
 # Con voz guardada
 response = requests.post(
     "http://localhost:8000/generate-tts",
-    auth=("admin", "admin_password"),
+    auth=("admin", "upfint2001"),
     data={
         "text": "Hello world",
         "voice_id": "female_english"
@@ -165,7 +271,7 @@ with open("output.wav", "wb") as f:
 with open("voice_sample.wav", "rb") as audio_file:
     response = requests.post(
         "http://localhost:8000/generate-tts",
-        auth=("admin", "admin_password"),
+        auth=("admin", "upfint2001"),
         data={"text": "Hello world"},
         files={"audio_prompt": audio_file}
     )
@@ -189,7 +295,7 @@ Retorna directamente el archivo de audio WAV generado.
 
 ---
 
-### 4. Upload Voice Clone
+### 5. Upload Voice Clone
 
 **Endpoint:** `POST /voices/upload`  
 **Autenticación:** ✅ Requerida (Basic Auth)  
@@ -206,7 +312,7 @@ Retorna directamente el archivo de audio WAV generado.
 
 ```bash
 curl -X POST "http://localhost:8000/voices/upload" \
-  -u admin:admin_password \
+  -u admin:upfint2001 \
   -F "name=my_custom_voice" \
   -F "file=@voice_sample.wav"
 ```
@@ -219,7 +325,7 @@ import requests
 with open("voice_sample.wav", "rb") as audio_file:
     response = requests.post(
         "http://localhost:8000/voices/upload",
-        auth=("admin", "admin_password"),
+        auth=("admin", "upfint2001"),
         data={"name": "my_custom_voice"},
         files={"file": audio_file}
     )
@@ -248,7 +354,7 @@ print(response.json())
 
 ---
 
-### 5. List Voices
+### 6. List Voices
 
 **Endpoint:** `GET /voices`  
 **Autenticación:** ✅ Requerida (Basic Auth)  
@@ -258,7 +364,7 @@ print(response.json())
 
 ```bash
 curl -X GET "http://localhost:8000/voices" \
-  -u admin:admin_password
+  -u admin:upfint2001
 ```
 
 #### Python Example
@@ -268,7 +374,7 @@ import requests
 
 response = requests.get(
     "http://localhost:8000/voices",
-    auth=("admin", "admin_password")
+    auth=("admin", "upfint2001")
 )
 
 voices = response.json()
@@ -298,7 +404,7 @@ print(voices)
 
 ---
 
-### 6. Get History
+### 8. Get History
 
 **Endpoint:** `GET /history`  
 **Autenticación:** ✅ Requerida (Basic Auth)  
@@ -308,7 +414,7 @@ print(voices)
 
 ```bash
 curl -X GET "http://localhost:8000/history" \
-  -u admin:admin_password
+  -u admin:upfint2001
 ```
 
 #### Python Example
@@ -318,7 +424,7 @@ import requests
 
 response = requests.get(
     "http://localhost:8000/history",
-    auth=("admin", "admin_password")
+    auth=("admin", "upfint2001")
 )
 
 history = response.json()
@@ -371,7 +477,58 @@ for entry in history:
 
 ---
 
-### 7. Download Audio File
+### 9. List Available Voices
+
+**Endpoint:** `GET /voices/list`  
+**Autenticación:** ❌ No requerida  
+**Descripción:** Lista todas las voces disponibles con sus metadatos. Usa el endpoint `/demo` para probarlas.
+
+#### Request Example
+
+```bash
+curl http://localhost:8000/voices/list
+```
+
+#### Python Example
+
+```python
+import requests
+
+response = requests.get("http://localhost:8000/voices/list")
+voices = response.json()
+
+for voice in voices["voices"]:
+    print(f"Voice: {voice['id']}")
+    print(f"Language: {voice['language']}")
+    print(f"Region: {voice['region']}")
+    print(f"Preview URL: http://localhost:8000{voice['preview_url']}")
+    print("---")
+```
+
+#### Response
+
+**Content-Type:** `application/json`  
+**Status Code:** `200 OK`
+
+```json
+{
+  "voices": [
+    {
+      "id": "agus",
+      "name": "agus",
+      "filename": "agus.wav",
+      "language": "es",
+      "region": "CL",
+      "gender": "male",
+      "description": "Spanish Male Voice (Chile)",
+      "preview_url": "/demo?text=Hola%20mundo&voice_id=agus"
+    }
+  ],
+  "total": 4
+}
+```
+
+### 10. Download Audio File
 
 **Endpoint:** `GET /download/{filename}`  
 **Autenticación:** ✅ Requerida (Basic Auth)  
@@ -387,7 +544,7 @@ for entry in history:
 
 ```bash
 curl -X GET "http://localhost:8000/download/gen_abc123-def456.wav" \
-  -u admin:admin_password \
+  -u admin:upfint2001 \
   --output downloaded_audio.wav
 ```
 
@@ -399,7 +556,7 @@ import requests
 # Primero obtener el historial
 history_response = requests.get(
     "http://localhost:8000/history",
-    auth=("admin", "admin_password")
+    auth=("admin", "upfint2001")
 )
 history = history_response.json()
 
@@ -408,7 +565,7 @@ if history:
     filename = history[0]["filename"]
     audio_response = requests.get(
         f"http://localhost:8000/download/{filename}",
-        auth=("admin", "admin_password")
+        auth=("admin", "upfint2001")
     )
     
     with open(f"downloaded_{filename}", "wb") as f:
@@ -506,7 +663,7 @@ import requests
 from pathlib import Path
 
 class VoiceAPI:
-    def __init__(self, base_url="http://localhost:8000", username="admin", password="admin_password"):
+    def __init__(self, base_url="http://localhost:8000", username="admin", password="upfint2001"):
         self.base_url = base_url
         self.auth = (username, password)
     

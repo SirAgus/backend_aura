@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status
+from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -6,7 +6,9 @@ import os
 import uuid
 import torch
 import torchaudio as ta
-from chatterbox.tts_turbo import ChatterboxTurboTTS
+# TTS Models: ChatterboxTurboTTS and ChatterboxMultilingualTTS
+print("ℹ️ Multi-model support enabled (Turbo and Multilingual)")
+
 import shutil
 import json
 from datetime import datetime
@@ -172,16 +174,59 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
-# Load the Turbo model (global)
-model = None
+# Load the models (cached)
+models = {"turbo": None, "multilingual": None}
 
-def get_model():
-    global model
-    if model is None:
+def get_model(mode="turbo"):
+    global models
+    
+    # Sanitize mode
+    if mode not in ["turbo", "multilingual"]:
+        mode = "turbo"
+        
+    if models[mode] is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"Loading ChatterboxTurboTTS on {device}...")
-        model = ChatterboxTurboTTS.from_pretrained(device=device)
-    return model
+        
+        # Check for Apple Silicon (MPS)
+        if device == "cpu" and torch.backends.mps.is_available():
+            # Chatterbox is better on CPU for now to avoid compatibility issues
+            pass
+
+        if mode == "multilingual":
+            try:
+                from chatterbox.mtl_tts import ChatterboxMultilingualTTS
+                print(f"Loading ChatterboxMultilingualTTS on {device}...")
+                
+                # Monkeypatch torch.load to fix the "deserialize on CUDA device" bug in the library
+                orig_load = torch.load
+                if device == "cpu":
+                    def patched_load(*args, **kwargs):
+                        if 'map_location' not in kwargs:
+                            kwargs['map_location'] = 'cpu'
+                        return orig_load(*args, **kwargs)
+                    torch.load = patched_load
+                
+                try:
+                    models["multilingual"] = ChatterboxMultilingualTTS.from_pretrained(device=device)
+                    print("✅ Multilingual model loaded successfully!")
+                finally:
+                    # Restore original torch.load
+                    if device == "cpu":
+                        torch.load = orig_load
+                        
+            except Exception as e:
+                print(f"⚠️ Failed to load Multilingual model: {e}")
+                print("🔄 Falling back to Turbo model...")
+                # If multilingual fails, we must force the return of turbo
+                return get_model("turbo")
+        else:
+            from chatterbox.tts_turbo import ChatterboxTurboTTS
+            print(f"Loading ChatterboxTurboTTS on {device}...")
+            models["turbo"] = ChatterboxTurboTTS.from_pretrained(device=device)
+            
+    return models[mode]
+
+
 
 def save_to_history(entry):
     history = []
@@ -201,10 +246,16 @@ async def generate_tts(
     text: str = Form(...),
     audio_prompt: UploadFile = File(None),
     voice_id: str = Form(None),
-    language: str = Form("en"), # Default to English if not specified
+    language: str = Form("en"), # Language for voice selection (reference sample)
+    mode: str = Form("turbo"), # "turbo" or "multilingual"
+    language_id: str = Form("es"), # Language for the model (for multilingual mode)
     username: str = Depends(authenticate)
 ):
-    m = get_model()
+    m = get_model(mode)
+    from chatterbox.tts_turbo import ChatterboxTurboTTS
+    actual_mode = "turbo" if isinstance(m, ChatterboxTurboTTS) else "multilingual"
+
+
     
     prompt_path = None
     should_cleanup_prompt = False
@@ -233,10 +284,16 @@ async def generate_tts(
     try:
         if prompt_path:
             # Generate speech using the reference voice (cloning)
-            # Pass language to fix accent issues (e.g. 'es' for Spanish)
-            wav = m.generate(text, audio_prompt_path=prompt_path, language=language)
+            if actual_mode == "multilingual":
+                # Multilingual model requires language_id
+                wav = m.generate(text, audio_prompt_path=prompt_path, language_id=language_id)
+            else:
+                # Turbo model determines language by reference voice (or defaults to en)
+                wav = m.generate(text, audio_prompt_path=prompt_path)
         else:
-            return {"error": "audio_prompt or voice_id is required for Chatterbox-Turbo"}
+            return {"error": "audio_prompt or voice_id is required for Chatterbox"}
+
+
 
         out_id = str(uuid.uuid4())
         out_filename = f"gen_{out_id}.wav"
@@ -250,8 +307,12 @@ async def generate_tts(
             "text": text,
             "filename": out_filename,
             "voice_used": voice_id if voice_id else "uploaded_sample",
+            "mode": actual_mode,
+            "language_id": language_id if actual_mode == "multilingual" else "en",
             "timestamp": datetime.now().isoformat(),
             "user": username
+
+
         }
         save_to_history(history_entry)
         
@@ -410,17 +471,28 @@ async def delete_voice(voice_id: str, username: str = Depends(authenticate)):
 @app.put("/voices/{voice_id}")
 async def update_voice(
     voice_id: str, 
-    new_name: str = Form(None),
-    language: str = Form(None),
-    region: str = Form(None), 
-    description: str = Form(None),
+    new_name: str = None,
+    language: str = None,
+    region: str = None, 
+    description: str = None,
     username: str = Depends(authenticate)
 ):
-    """Rename a voice or update its metadata."""
+    """Rename a voice or update its metadata. Accepts Query Params."""
+    # Debug print
+    print(f"Updating voice: {voice_id}")
+    
+    # Try to find file with exact match first
     old_path = os.path.join(VOICES_DIR, f"{voice_id}.wav")
     
     if not os.path.exists(old_path):
-        raise HTTPException(status_code=404, detail="Voice not found")
+        # Try finding it URL decoded just in case
+        import urllib.parse
+        decoded_id = urllib.parse.unquote(voice_id)
+        old_path = os.path.join(VOICES_DIR, f"{decoded_id}.wav")
+        if not os.path.exists(old_path):
+            print(f"File not found at: {old_path}")
+            raise HTTPException(status_code=404, detail=f"Voice '{voice_id}' not found")
+        voice_id = decoded_id
         
     metadata = get_voice_metadata()
     if voice_id not in metadata:
@@ -457,18 +529,32 @@ async def download_file(filename: str, username: str = Depends(authenticate)):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path, media_type="audio/wav", filename=filename)
 
-@app.post("/demo")
-async def demo_tts(
-    text: str = Form(...),
-    language: str = Form(None),
-    region: str = Form(None)
-):
+
+@app.api_route("/demo", methods=["GET", "POST"])
+async def demo_tts(request: Request):
     """
-    Quick demo endpoint. 
-    If language/region is provided, it attempts to find a matching voice.
-    Otherwise defaults to female_english.
+    Quick demo endpoint. Accepts GET or POST.
+    Robustly handles parameters from either Query Params (GET) or Form Data (POST).
     """
-    m = get_model()
+    # Extract parameters manually depending on method
+    if request.method == "GET":
+        language = request.query_params.get("language")
+        region = request.query_params.get("region")
+        mode = request.query_params.get("mode", "turbo")
+        language_id = request.query_params.get("language_id", "es")
+    else: # POST
+        form_data = await request.form()
+        text = form_data.get("text", "This is a voice cloning demo.")
+        language = form_data.get("language")
+        region = form_data.get("region")
+        mode = form_data.get("mode", "turbo")
+        language_id = form_data.get("language_id", "es")
+
+    m = get_model(mode)
+    from chatterbox.tts_turbo import ChatterboxTurboTTS
+    actual_mode = "turbo" if isinstance(m, ChatterboxTurboTTS) else "multilingual"
+
+
     
     # Find best voice based on criteria
     voice_id = "female_english" # Default fallback
@@ -499,44 +585,103 @@ async def demo_tts(
     voice_path = os.path.join(VOICES_DIR, f"{voice_id}.wav")
     
     if not os.path.exists(voice_path):
-        raise HTTPException(
-            status_code=503, 
-            detail=f"Voice '{voice_id}' not available. Please ensure voices are downloaded."
-        )
+        # Fallback to absolute default if selected voice is missing
+        voice_path = os.path.join(VOICES_DIR, "female_english.wav")
+        if not os.path.exists(voice_path):
+             raise HTTPException(
+                status_code=503, 
+                detail="No suitable voice found. Please restart server to download defaults."
+            )
     
     try:
         # Generate speech using the selected voice
-        # Pass language if provided, otherwise default to "en"
-        target_lang = language if language else "en"
-        wav = m.generate(text, audio_prompt_path=voice_path, language=target_lang)
-        
-        out_id = str(uuid.uuid4())
-        out_filename = f"demo_{out_id}.wav"
-        out_path = os.path.join(STORAGE_DIR, out_filename)
-        
-        ta.save(out_path, wav, m.sr)
-        
-        # Save to history
-        history_entry = {
-            "id": out_id,
-            "text": text,
-            "filename": out_filename,
-            "voice_used": voice_id,
-            "language_requested": language, 
-            "region_requested": region,
-            "timestamp": datetime.now().isoformat(),
-            "user": "anonymous"
-        }
-        save_to_history(history_entry)
-        
-        return FileResponse(out_path, media_type="audio/wav", filename=f"demo_{voice_id}.wav")
+        # The language is determined by the reference voice, not by a language parameter
+        # The language parameter is only used for voice selection
+
+        # Generate speech using the selected voice
+        # Turbo model determines language by reference voice
+        if actual_mode == "multilingual":
+            wav = m.generate(text, audio_prompt_path=voice_path, language_id=language_id)
+        else:
+            wav = m.generate(text, audio_prompt_path=voice_path)
+
+
+
+        # Convert to bytes for streaming response (don't save to disk)
+        import io
+        buffer = io.BytesIO()
+        ta.save(buffer, wav, m.sr, format="wav")
+        buffer.seek(0)
+
+        from fastapi.responses import StreamingResponse
+        return StreamingResponse(
+            buffer,
+            media_type="audio/wav",
+            headers={"Content-Disposition": f"attachment; filename=demo_{voice_id}.wav"}
+        )
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating speech: {str(e)}")
 
 @app.get("/")
 def read_root():
-    return {"status": "Voice Backend Running", "model": "ResembleAI/chatterbox-turbo", "auth": "enabled"}
+    return {
+        "status": "Voice Backend Running", 
+        "model": "ResembleAI/chatterbox-turbo", 
+        "multilingual_support": "Enabled",
+        "available_modes": ["turbo", "multilingual"],
+        "auth": "enabled"
+    }
+
+
+@app.post("/login")
+async def login(credentials: HTTPBasicCredentials = Depends(security)):
+    """
+    Verify user credentials.
+    Returns success/failure without exposing sensitive information.
+    """
+    if credentials.username == API_USERNAME and credentials.password == API_PASSWORD:
+        return {
+            "success": True,
+            "message": "Login successful",
+            "user": credentials.username
+        }
+    else:
+        return {
+            "success": False,
+            "message": "Invalid credentials"
+        }
+
+@app.get("/voices/list")
+async def list_available_voices():
+    """
+    List all available voices with their metadata.
+    Use /demo endpoint to test them with your own text.
+    """
+    if not os.path.exists(VOICES_DIR):
+        return {"voices": []}
+
+    voice_files = [f for f in os.listdir(VOICES_DIR) if f.endswith(".wav")]
+    metadata = get_voice_metadata()
+
+    result = []
+    for f in voice_files:
+        voice_id = f.replace(".wav", "")
+        # Get metadata or default if missing
+        meta = metadata.get(voice_id, {
+            "name": voice_id,
+            "language": "unknown",
+            "region": None,
+            "gender": None,
+            "description": "Voice available"
+        })
+        # Ensure filename matches existing file
+        meta["filename"] = f
+        meta["id"] = voice_id
+        meta["preview_url"] = f"/demo?text=Hola%20mundo&voice_id={voice_id}"
+        result.append(meta)
+
+    return {"voices": result, "total": len(result)}
 
 if __name__ == "__main__":
     import uvicorn

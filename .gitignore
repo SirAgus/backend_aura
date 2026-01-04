@@ -1,2 +1,47 @@
 .env
 venv
+
+# Archivos temporales y de desarrollo
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Archivos de voz generados (no subir al repo)
+outputs/
+voices/*.wav
+
+# Scripts de instalación (solo para desarrollo local)
+install_multilingual.sh
+install_real_multilingual.sh
+update_chatterbox.sh
+run_check.sh
+setup_and_run.sh
+force_install_multilingual.sh
+
+# Implementaciones locales (no son el modelo oficial)
+chatterbox_multilingual.py
+
+# Historial (datos temporales)
+history.json
+
+# Archivos temporales
+temp_*
+*.tmp
+*.log

@@ -2,15 +2,74 @@
 
 API de síntesis y clonación de voz usando **ResembleAI/chatterbox-turbo**.
 
+## 🗣️ Soporte de Idiomas
+
+### Configuración por Variable de Entorno
+
+### Modelo TTS Disponible
+
+Solo está disponible **ChatterboxTurboTTS** (versión 0.1.6 del paquete):
+
+- ✅ **Funciona perfectamente** con voces de referencia
+- ✅ **Español soportado** vía voces chilenas (`agus`, `agus_latin`)
+- ❌ **Modelo multilingüe NO disponible** en esta versión del paquete
+
+### Nota Importante
+
+El modelo multilingüe (`ChatterboxMultilingualTTS`) **no está incluido** en `chatterbox-tts 0.1.6`. Solo está disponible el modelo Turbo, que funciona correctamente con voces de referencia para español.
+
+### Modelos Disponibles
+
+#### **Turbo (Predeterminado)**
+- **Español**: ✅ Funciona vía voces de referencia
+- **Voces**: Chilenas (`agus`, `agus_latin`)
+- **Ventaja**: Siempre disponible y funcional
+
+#### **Multilingual (Avanzado)**
+- **Español**: ✅ Soporte nativo con parámetro `language`
+- **Idiomas**: 23+ idiomas soportados
+- **Ventaja**: Mejor pronunciación y prosodia
+- **Nota**: Requiere instalación especial
+
+### Mejorar Acento Español
+
+Para mejor acento, sube voces más naturales:
+
+```bash
+# Subir voz española más natural
+curl -X POST "http://localhost:8000/voices/upload" \
+  -u admin:upfint2001 \
+  -F "name=voz_espana" \
+  -F "language=es" \
+  -F "region=ES" \
+  -F "file=@voz_mas_natural.wav"
+```
+
 ## 📋 Requisitos
 
 - **Python 3.11** (recomendado)
 - **macOS** con Apple Silicon (ARM64) o sistema compatible
 - Al menos **2GB de espacio libre** para modelos y dependencias
 
-## 🚀 Instalación
+## 🚀 Instalación Rápida
 
-### 1. Crear entorno virtual
+### Opción 1: Script automático (Recomendado)
+
+```bash
+cd backend
+chmod +x setup_and_run.sh
+./setup_and_run.sh
+```
+
+Este script hace todo automáticamente:
+- ✅ Activa el entorno virtual
+- ✅ Instala todas las dependencias
+- ✅ Verifica la instalación
+- ✅ Inicia el servidor
+
+### Opción 2: Instalación manual
+
+#### 1. Crear entorno virtual
 
 ```bash
 cd backend
@@ -18,7 +77,7 @@ python3.11 -m venv venv
 source venv/bin/activate
 ```
 
-### 2. Instalar dependencias
+#### 2. Instalar dependencias
 
 ```bash
 pip install --upgrade pip setuptools wheel
@@ -33,11 +92,12 @@ El archivo `.env` ya está creado con valores por defecto. Puedes editarlo para 
 
 ```bash
 API_USERNAME=admin
-API_PASSWORD=admin_password
+API_PASSWORD=upfint2001
 API_KEY=your_secret_api_key_here
 STORAGE_DIR=outputs
 VOICES_DIR=voices
 HISTORY_FILE=history.json
+TTS_MODEL=turbo  # Solo turbo disponible
 ```
 
 ## ▶️ Iniciar el servidor

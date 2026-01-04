@@ -1,0 +1,90 @@
+[
+    {
+        "id": "6aab3f2d-9858-4305-974f-c673eac34544",
+        "text": "hola",
+        "filename": "gen_6aab3f2d-9858-4305-974f-c673eac34544.wav",
+        "voice_used": "female_english",
+        "timestamp": "2026-01-04T14:33:51.341822",
+        "user": "admin"
+    },
+    {
+        "id": "e250a970-4874-4006-9b1e-6b5765939a38",
+        "text": "Hello, this is a preview of the voice female_english",
+        "filename": "gen_e250a970-4874-4006-9b1e-6b5765939a38.wav",
+        "voice_used": "female_english",
+        "timestamp": "2026-01-04T14:35:33.984010",
+        "user": "admin"
+    },
+    {
+        "id": "2a467dae-374f-45b6-9718-2589a1eef759",
+        "text": "hola que tal toty mi nombre es orionis ",
+        "filename": "gen_2a467dae-374f-45b6-9718-2589a1eef759.wav",
+        "voice_used": "female_english",
+        "timestamp": "2026-01-04T14:36:22.779845",
+        "user": "admin"
+    },
+    {
+        "id": "1cc9467a-297d-4540-a785-9555608e3b85",
+        "text": "hola que tal toty mi nombre es orionis ",
+        "filename": "gen_1cc9467a-297d-4540-a785-9555608e3b85.wav",
+        "voice_used": "male_english",
+        "timestamp": "2026-01-04T14:45:24.690266",
+        "user": "admin"
+    },
+    {
+        "id": "fcd118c5-692d-419d-adeb-d65bd89ad491",
+        "text": "Hello, this is a preview of the voice female_english",
+        "filename": "gen_fcd118c5-692d-419d-adeb-d65bd89ad491.wav",
+        "voice_used": "female_english",
+        "timestamp": "2026-01-04T14:45:38.547570",
+        "user": "admin"
+    },
+    {
+        "id": "0c7854dc-1e34-4c42-bb77-671a7d778a8f",
+        "text": "Hello, this is a preview of the voice male_english",
+        "filename": "gen_0c7854dc-1e34-4c42-bb77-671a7d778a8f.wav",
+        "voice_used": "male_english",
+        "timestamp": "2026-01-04T14:45:43.977890",
+        "user": "admin"
+    },
+    {
+        "id": "4abe3f3d-73c3-41e8-aca3-62e22da17fb5",
+        "text": "Hello, this is a preview of the voice agus",
+        "filename": "gen_4abe3f3d-73c3-41e8-aca3-62e22da17fb5.wav",
+        "voice_used": "agus",
+        "timestamp": "2026-01-04T14:46:19.347762",
+        "user": "admin"
+    },
+    {
+        "id": "ae56c87c-a631-4873-9a56-8f203dc7c430",
+        "text": "hola tortuguita ",
+        "filename": "gen_ae56c87c-a631-4873-9a56-8f203dc7c430.wav",
+        "voice_used": "agus",
+        "timestamp": "2026-01-04T14:46:34.928571",
+        "user": "admin"
+    },
+    {
+        "id": "46ae3784-85b5-46e6-8ec7-5700898379cb",
+        "text": "Hello, this is a preview of the voice male_english",
+        "filename": "gen_46ae3784-85b5-46e6-8ec7-5700898379cb.wav",
+        "voice_used": "male_english",
+        "timestamp": "2026-01-04T14:47:57.620987",
+        "user": "admin"
+    },
+    {
+        "id": "19991029-2cfa-479e-a5c2-9f4269507e5a",
+        "text": "Hello, this is a preview of the voice agus",
+        "filename": "gen_19991029-2cfa-479e-a5c2-9f4269507e5a.wav",
+        "voice_used": "agus",
+        "timestamp": "2026-01-04T14:48:04.575971",
+        "user": "admin"
+    },
+    {
+        "id": "db9a41ec-a38e-43ce-9441-835ecfb4b1d6",
+        "text": "hola tortuguita",
+        "filename": "gen_db9a41ec-a38e-43ce-9441-835ecfb4b1d6.wav",
+        "voice_used": "agus latin",
+        "timestamp": "2026-01-04T14:50:10.138309",
+        "user": "admin"
+    }
+]

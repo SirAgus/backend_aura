@@ -55,5 +55,85 @@
         "description": null,
         "uploaded_by": "upfint",
         "uploaded_at": "2026-01-04T18:51:18.562570"
+    },
+    "daniela": {
+        "name": "daniela",
+        "filename": "daniela.wav",
+        "language": "es",
+        "region": "AR",
+        "gender": "female",
+        "description": "Piper Voice (high)",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T20:36:08.888884"
+    },
+    "carlfm": {
+        "name": "carlfm",
+        "filename": "carlfm.wav",
+        "language": "es",
+        "region": "ES",
+        "gender": "male",
+        "description": "Piper Voice (x_low)",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T20:36:09.251343"
+    },
+    "davefx": {
+        "name": "davefx",
+        "filename": "davefx.wav",
+        "language": "es",
+        "region": "ES",
+        "gender": "male",
+        "description": "Piper Voice (medium)",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T20:36:09.793158"
+    },
+    "mls_10246": {
+        "name": "mls_10246",
+        "filename": "mls_10246.wav",
+        "language": "es",
+        "region": "ES",
+        "gender": "male",
+        "description": "Piper Voice (low)",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T20:36:10.239607"
+    },
+    "mls_9972": {
+        "name": "mls_9972",
+        "filename": "mls_9972.wav",
+        "language": "es",
+        "region": "ES",
+        "gender": "female",
+        "description": "Piper Voice (low)",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T20:36:10.567531"
+    },
+    "sharvard": {
+        "name": "sharvard",
+        "filename": "sharvard.wav",
+        "language": "es",
+        "region": "ES",
+        "gender": "male",
+        "description": "Piper Voice (medium)",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T20:36:10.989929"
+    },
+    "ald": {
+        "name": "ald",
+        "filename": "ald.wav",
+        "language": "es",
+        "region": "MX",
+        "gender": "male",
+        "description": "Piper Voice (medium)",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T20:36:11.319816"
+    },
+    "claude": {
+        "name": "claude",
+        "filename": "claude.wav",
+        "language": "es",
+        "region": "MX",
+        "gender": "male",
+        "description": "Piper Voice (high)",
+        "uploaded_by": "system",
+        "uploaded_at": "2026-01-04T20:36:11.743530"
     }
 }

@@ -25,7 +25,7 @@ wheels/
 
 # Archivos de voz generados (no subir al repo)
 outputs/
-voices/*.wav
+
 
 # Scripts de instalación (solo para desarrollo local)
 install_multilingual.sh

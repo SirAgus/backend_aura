@@ -610,6 +610,7 @@ async def demo_tts(request: Request):
     """
     # Extract parameters manually depending on method
     if request.method == "GET":
+        text = request.query_params.get("text", "This is a voice cloning demo.")
         language = request.query_params.get("language")
         region = request.query_params.get("region")
         mode = request.query_params.get("mode", "turbo")
@@ -617,9 +618,10 @@ async def demo_tts(request: Request):
         language_id = request.query_params.get("language_id", "es")
         temperature = float(request.query_params.get("temperature", 0.8))
         exaggeration = float(request.query_params.get("exaggeration", 0.5))
-        cfgValue = float(request.query_params.get("cfg", 0.5))
-        rep_p = float(request.query_params.get("repetition_penalty", 1.2))
+        cfgValue = float(request.query_params.get("cfg", 0.6))
+        rep_p = float(request.query_params.get("repetition_penalty", 1.15))
         t_p = float(request.query_params.get("top_p", 0.9))
+        min_p = float(request.query_params.get("min_p", 0.05))
     else: # POST
         form_data = await request.form()
         text = form_data.get("text", "This is a voice cloning demo.")
@@ -630,9 +632,23 @@ async def demo_tts(request: Request):
         language_id = form_data.get("language_id", "es")
         temperature = float(form_data.get("temperature", 0.8))
         exaggeration = float(form_data.get("exaggeration", 0.5))
-        cfgValue = float(form_data.get("cfg", 0.5))
-        rep_p = float(form_data.get("repetition_penalty", 1.2))
+        cfgValue = float(form_data.get("cfg", 0.6))
+        rep_p = float(form_data.get("repetition_penalty", 1.15))
         t_p = float(form_data.get("top_p", 0.9))
+        min_p = float(form_data.get("min_p", 0.05))
+
+    # Construct initial params dictionary
+    initial_params = {
+        "temperature": temperature,
+        "exaggeration": exaggeration,
+        "cfg_weight": cfgValue,
+        "repetition_penalty": rep_p,
+        "top_p": t_p,
+        "min_p": min_p
+    }
+
+    # Process tags in text (this updates params based on tags like [happy])
+    processed_text, params = process_text_tags(text, initial_params)
 
     m = get_model(mode)
     from chatterbox.tts_turbo import ChatterboxTurboTTS

@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+chatterbox-tts
+torch
+torchaudio
+python-multipart
+numpy
+python-dotenv

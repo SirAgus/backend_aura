@@ -39,10 +39,12 @@ STORAGE_DIR = os.getenv("STORAGE_DIR", "outputs")
 VOICES_DIR = os.getenv("VOICES_DIR", "voices")
 VOICES_META_FILE = os.path.join(VOICES_DIR, "metadata.json")
 HISTORY_FILE = os.getenv("HISTORY_FILE", "history.json")
+AMBIENCE_DIR = os.getenv("AMBIENCE_DIR", "ambience")
 
 # Ensure local directories exist
 os.makedirs(STORAGE_DIR, exist_ok=True)
 os.makedirs(VOICES_DIR, exist_ok=True)
+os.makedirs(AMBIENCE_DIR, exist_ok=True)
 
 # Initialize metadata file if it doesn't exist
 if not os.path.exists(VOICES_META_FILE):
@@ -63,8 +65,6 @@ def save_voice_metadata(metadata):
         json.dump(metadata, f, indent=4)
 
 # Default voice samples to download on first run
-# Using Mozilla TTS LJSpeech public domain samples (English only)
-# Users can upload their own Spanish voices using the /voices/upload endpoint
 DEFAULT_VOICES = {
     "female_english": "https://github.com/mozilla/TTS/raw/master/tests/data/ljspeech/wavs/LJ001-0001.wav",
     "male_english": "https://github.com/mozilla/TTS/raw/master/tests/data/ljspeech/wavs/LJ001-0005.wav",
@@ -155,6 +155,68 @@ def save_upload_as_wav(upload_file: UploadFile, dest_path: str):
 # Download default voices on startup
 download_default_voices()
 
+# Default ambience sounds
+DEFAULT_AMBIENCE = {
+    "rain": "https://pixabay.com/sound-effects/download/heavy-rain-nature-sounds-8167.mp3", # Example public domain/royalty free or placeholder
+    "birds": "https://pixabay.com/sound-effects/download/birds-singing-03-6756.mp3",
+    "cafe": "https://pixabay.com/sound-effects/download/coffee-shop-chatter-8178.mp3",
+    "lofi": "https://pixabay.com/sound-effects/download/lofi-study-112191.mp3"
+}
+
+def download_default_ambience():
+    """Download default ambience sounds if they don't exist."""
+    amb_path = Path(AMBIENCE_DIR)
+    print("Checking default ambience sounds...")
+    
+    # We need to simulate headers for some sites or use direct raw links. 
+    # For now, we will use mock-up logic or direct valid URLs if available.
+    # Note: Pixabay requires specific headers/auth often, so these are illustrative placeholders 
+    # that would need valid direct raw URLs in a real prod env.
+    
+    # Using robust URLs
+    reliable_sources = {
+        "rain": "https://www.soundjay.com/nature/sounds/rain-03.mp3",
+        "birds": "https://www.soundjay.com/nature/sounds/canary-singing-01.mp3",
+        "storm": "https://www.soundjay.com/nature/sounds/thunder-01.mp3",
+        "office": "https://www.soundjay.com/misc/sounds/busy-office-ambience-1.mp3"
+    }
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    for name, url in reliable_sources.items():
+        fname = amb_path / f"{name}.wav"
+        if not fname.exists():
+            try:
+                print(f"  - Downloading ambience: {name}...")
+                response = requests.get(url, timeout=15, headers=headers)
+                if response.status_code == 200:
+                    temp = amb_path / f"temp_{name}.ogg"
+                    with open(temp, "wb") as f:
+                        f.write(response.content)
+                    w, sr = ta.load(str(temp))
+                    ta.save(str(fname), w, sr)
+                    os.remove(temp)
+                    print(f"    ✓ Ambient sound ready: {name}")
+                else:
+                    raise Exception(f"HTTP {response.status_code}")
+            except Exception as e:
+                print(f"    ✗ Fallback: Generating noise for {name} ({e})")
+                # Generate a colored noise as fallback
+                dur = 10
+                sr = 24000
+                noise = torch.randn(1, dur * sr)
+                if name == "birds":
+                    # Soft chirps simulation or just silence is better than white noise
+                    noise = noise * 0.05 
+                elif name == "office":
+                    # Mid range hum
+                    noise = noise * 0.1
+                else:
+                    noise = noise * 0.05
+                ta.save(str(fname), noise.real if torch.is_complex(noise) else noise, sr)
+
+download_default_ambience()
+
 # Enable CORS for the frontend
 app.add_middleware(
     CORSMiddleware,
@@ -175,69 +237,14 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 # Load the models (cached)
-models = {"turbo": None, "multilingual": None}
+models = {"turbo": None, "multilingual": None, "original": None}
 
-def process_text_tags(text, current_params):
-    """
-    Parses tags like [risa], [happy] and modifies the text or parameters.
-    Returns: (modified_text, modified_params)
-    """
-    import re
-    
-    # 1. Onomatopoeias (Sound Effects)
-    # Map Spanish tags to valid Model Tags (do NOT replace with text "haha", use the tag "[laugh]")
-    replacements = {
-        r"\[risa\]": " [laugh] ",
-        r"\[laught\]": " [laugh] ", # Typos support
-        r"\[jaja\]": " [laugh] ",
-        r"\[suspiro\]": " [sigh] ",
-        r"\[tos\]": " [cough] ",
-        r"\[carraspeo\]": " [clear throat] ",
-        r"\[chistar\]": " [shush] ",
-        r"\[quejido\]": " [groan] ",
-        r"\[olfatear\]": " [sniff] ",
-        r"\[jadeo\]": " [gasp] ",
-        r"\[risita\]": " [chuckle] ",
-        
-        # Keep these as text if they aren't supported model tags
-        r"\[pausa\]": " ... ",
-        r"\[beso\]": " mua ",
-    }
-    
-    for pattern, replacement in replacements.items():
-        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
-
-    # 2. Style Tags (Global adjustment heuristic)
-    # Check if text starts with a style tag to adjust global parameters
-    # Note: Only works if the tag is at the start or dominant
-    
-    if re.search(r"\[(feliz|happy)\]", text, re.IGNORECASE):
-        # Happy = High exaggeration, higher pitch variation
-        current_params["exaggeration"] = max(current_params.get("exaggeration", 0.5), 1.2)
-        current_params["temperature"] = max(current_params.get("temperature", 0.8), 0.9)
-        text = re.sub(r"\[(feliz|happy)\]", "", text, flags=re.IGNORECASE)
-        
-    if re.search(r"\[(triste|sad)\]", text, re.IGNORECASE):
-        # Sad = Low exaggeration, slower, stable
-        current_params["exaggeration"] = 0.2
-        current_params["temperature"] = 0.6
-        current_params["cfg_weight"] = 0.8 # More constraint
-        text = re.sub(r"\[(triste|sad)\]", "", text, flags=re.IGNORECASE)
-
-    if re.search(r"\[(serio|serious)\]", text, re.IGNORECASE):
-        # Serious = Low temp, neutral exaggeration
-        current_params["exaggeration"] = 0.4
-        current_params["temperature"] = 0.5
-        current_params["cfg_weight"] = 0.9
-        text = re.sub(r"\[(serio|serious)\]", "", text, flags=re.IGNORECASE)
-
-    return text.strip(), current_params
 
 def get_model(mode="turbo"):
     global models
     
     # Sanitize mode
-    if mode not in ["turbo", "multilingual"]:
+    if mode not in ["turbo", "multilingual", "original"]:
         mode = "turbo"
         
     if models[mode] is None:
@@ -275,6 +282,10 @@ def get_model(mode="turbo"):
                 print("🔄 Falling back to Turbo model...")
                 # If multilingual fails, we must force the return of turbo
                 return get_model("turbo")
+        elif mode == "original":
+            from chatterbox import ChatterboxTTS
+            print(f"Loading Original ChatterboxTTS on {device}...")
+            models["original"] = ChatterboxTTS.from_pretrained(device=device)
         else:
             from chatterbox.tts_turbo import ChatterboxTurboTTS
             print(f"Loading ChatterboxTurboTTS on {device}...")
@@ -282,7 +293,171 @@ def get_model(mode="turbo"):
             
     return models[mode]
 
+def generate_brown_noise(duration_sec=30, sr=24000):
+    """Generates a brown noise sample for testing ambience."""
+    # Simple accumulation of white noise creates brown noise
+    x = torch.randn(duration_sec * sr)
+    brown = torch.cumsum(x, dim=0)
+    # Normalize
+    brown = brown / torch.max(torch.abs(brown))
+    # Save
+    path = os.path.join(AMBIENCE_DIR, "static_noise.wav")
+    if not os.path.exists(path):
+        ta.save(path, brown.unsqueeze(0), sr)
+        print(f"✅ Generated sample ambience: {path}")
 
+generate_brown_noise() # Run on startup
+
+def mix_ambience(voice_wav, ambience_id, sr):
+    """Mixes voice tensor with an ambience file."""
+    if not ambience_id:
+        return voice_wav
+        
+    print(f"DEBUG: mix_ambience called with id={ambience_id}, sr={sr}")
+    amb_path = os.path.join(AMBIENCE_DIR, f"{ambience_id}.wav")
+    if not os.path.exists(amb_path):
+        print(f"⚠️ Ambience file not found: {amb_path}")
+        return voice_wav
+
+    try:
+        # 1. Ensure voice_wav is a Tensor on CPU
+        if not isinstance(voice_wav, torch.Tensor):
+            if hasattr(voice_wav, '__array__'): # Numpy
+                voice_wav = torch.from_numpy(voice_wav)
+            elif isinstance(voice_wav, list):
+                voice_wav = torch.tensor(voice_wav)
+            else:
+                print(f"⚠️ Unknown voice_wav type: {type(voice_wav)}")
+                return voice_wav
+        
+        voice_wav = voice_wav.detach().cpu()
+        if voice_wav.dim() == 1:
+            voice_wav = voice_wav.unsqueeze(0) # [1, T]
+            
+        print(f"DEBUG: voice_wav shape: {voice_wav.shape}")
+
+        # 2. Load Ambience
+        amb_wav, amb_sr = ta.load(amb_path)
+        amb_wav = amb_wav.detach().cpu()
+        
+        # 3. Resample
+        if amb_sr != sr:
+            resampler = ta.transforms.Resample(amb_sr, sr)
+            amb_wav = resampler(amb_wav)
+            
+        # 4. Mono/Stereo Check & Normalization
+        if voice_wav.shape[0] == 1 and amb_wav.shape[0] > 1:
+            amb_wav = torch.mean(amb_wav, dim=0, keepdim=True)
+            
+        # NORMALIZE BOTH TO 1.0 (0dB) BEFORE MIXING
+        v_max = torch.max(torch.abs(voice_wav))
+        if v_max > 0:
+            voice_wav = voice_wav / v_max
+            
+        a_max = torch.max(torch.abs(amb_wav))
+        if a_max > 0:
+            amb_wav = amb_wav / a_max
+            
+        print(f"DEBUG: Normalized voice (max={v_max:.2f}) and ambience (max={a_max:.2f})")
+            
+        # 5. Loop/Repeat or Seek Random Ambience
+        voice_len = voice_wav.shape[1]
+        amb_len = amb_wav.shape[1]
+        
+        import random
+        if amb_len > voice_len:
+            start_idx = random.randint(0, amb_len - voice_len)
+            amb_wav = amb_wav[:, start_idx : start_idx + voice_len]
+        else:
+            repeats = (voice_len // amb_len) + 1
+            amb_wav = amb_wav.repeat(1, repeats)
+            amb_wav = amb_wav[:, :voice_len]
+        
+        print(f"DEBUG: amb_wav shape after processing: {amb_wav.shape}")
+
+        # 7. Mix
+        # Reduced ambience (0.25) to prevent overpowering the voice
+        mixed = (voice_wav * 1.0) + (amb_wav * 0.25)
+        
+        # 8. Normalize result
+        max_val = torch.max(torch.abs(mixed))
+        if max_val > 0.01: # Avoid division by zero
+            mixed = mixed / max_val
+            
+        return mixed
+
+    except Exception as e:
+        print(f"❌ Error mixing ambience: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return original audio if mixing fails
+        return voice_wav
+
+def process_text_tags(text, current_params):
+    """
+    Parses tags like [risa], [happy] and modifies the text or parameters.
+    Returns: (modified_text, modified_params)
+    """
+    import re
+    
+    # 1. Onomatopoeias (Sound Effects)
+    # Map Spanish tags to valid Model Tags (do NOT replace with text "haha", use the tag "[laugh]")
+    replacements = {
+        r"\[risa\]": " [laugh] ",
+        r"\[laught\]": " [laugh] ", # Typos support
+        r"\[jaja\]": " [laugh] ",
+        r"\[broma\]": " [laugh] ",
+        r"\[suspiro\]": " [sigh] ",
+        r"\[tos\]": " [cough] ",
+        r"\[carraspeo\]": " [clear throat] ",
+        r"\[chistar\]": " [shush] ",
+        r"\[quejido\]": " [groan] ",
+        r"\[olfatear\]": " [sniff] ",
+        r"\[jadeo\]": " [gasp] ",
+        r"\[risita\]": " [chuckle] ",
+        
+        # Keep these as text if they aren't supported model tags
+        r"\[pausa\]": " ... ",
+        r"\[beso\]": " mua ",
+    }
+    
+    has_laughter = False
+    for pattern, replacement in replacements.items():
+        if re.search(pattern, text, re.IGNORECASE):
+            if "laugh" in replacement or "chuckle" in replacement:
+                has_laughter = True
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+
+    # 2. Dynamic Param Tuning for Naturalness
+    # If laughter is present, boost parameters to allow for more expressive/unstable outputs
+    if has_laughter or "[laugh]" in text or "[chuckle]" in text:
+        # Laughter needs high temperature to sound real (chaos)
+        current_params["temperature"] = max(current_params.get("temperature", 0.7), 0.95)
+        current_params["exaggeration"] = max(current_params.get("exaggeration", 0.5), 0.7)
+        # Lower repetition penalty significantly for laughter, as it often involves rapid repetitive sounds
+        current_params["repetition_penalty"] = 1.0 
+        print("🎭 Laughter detected! Boosting temperature and lowering penalty for naturalness.")
+
+    # 3. Tone Tags
+    if re.search(r"\[(feliz|happy)\]", text, re.IGNORECASE):
+        current_params["exaggeration"] = max(current_params.get("exaggeration", 0.5), 1.5)
+        current_params["temperature"] = max(current_params.get("temperature", 0.8), 0.95)
+        current_params["repetition_penalty"] = max(current_params.get("repetition_penalty", 1.1), 1.15)
+        text = re.sub(r"\[(feliz|happy)\]", "", text, flags=re.IGNORECASE)
+        
+    if re.search(r"\[(triste|sad)\]", text, re.IGNORECASE):
+        current_params["exaggeration"] = 0.2
+        current_params["temperature"] = 0.6
+        current_params["cfg_weight"] = 0.8
+        text = re.sub(r"\[(triste|sad)\]", "", text, flags=re.IGNORECASE)
+
+    if re.search(r"\[(serio|serious)\]", text, re.IGNORECASE):
+        current_params["exaggeration"] = 0.4
+        current_params["temperature"] = 0.5
+        current_params["cfg_weight"] = 0.9
+        text = re.sub(r"\[(serio|serious)\]", "", text, flags=re.IGNORECASE)
+
+    return text.strip(), current_params
 
 def save_to_history(entry):
     history = []
@@ -308,19 +483,15 @@ async def generate_tts(
     temperature: float = Form(0.8), # Higher = more emotional/varied, Lower = more stable
     exaggeration: float = Form(0.5), # Higher = more expressive
     cfg: float = Form(0.6), # Slightly higher for more stability
-    repetition_penalty: float = Form(1.15), # Balanced for Spanish
-    top_p: float = Form(0.9), # Nucleus sampling. Lower = more "stable" voice qualities.
-    min_p: float = Form(0.05), # Minimum probability filter.
+    repetition_penalty: float = Form(1.1), # LOWERED default from 1.15 to 1.1 for better flow
+    top_p: float = Form(0.9), # Nucleus sampling
+    min_p: float = Form(0.05), # LOWERED to 0.05 for more expressiveness by default
+    ambience_id: str = Form(None), # New Ambience parameter
     username: str = Depends(authenticate)
 ):
     # Determine mode:
     # 1. If voice_id is provided, check its metadata to see if it has a preferred model.
-    # 2. If the preferred model is "chatterbox-multilingual", set mode="multilingual".
-    # 3. If the preferred model is "chatterbox-turbo" or "chatterbox-original", set mode="turbo".
-    # 4. If nothing found in metadata, fallback to the 'mode' parameter passed in request.
-
     target_mode = mode
-    
     if voice_id:
         try:
              metadata = get_voice_metadata()
@@ -340,9 +511,7 @@ async def generate_tts(
     from chatterbox.tts_turbo import ChatterboxTurboTTS
     actual_mode = "turbo" if isinstance(m, ChatterboxTurboTTS) else "multilingual"
 
-    print(f"🚀 TTS Request: Mode [{actual_mode}] (Requested: {target_mode}), Voice ID [{voice_id if voice_id else 'upload'}]")
-    if actual_mode == "turbo" and language == "es":
-        print("💡 Tip: Usando modo 'turbo' con español. Para mejor acento, usa mode='multilingual'.")
+    print(f"🚀 TTS Request: Mode [{actual_mode}], Ambience: [{ambience_id}], Text: {text[:30]}...")
     
     # Process text tags ONLY if using Turbo model (as per request specs)
     # Multilingual doesn't support paralinguistic tags in this implementation
@@ -356,8 +525,9 @@ async def generate_tts(
         "min_p": min_p
     }
     
-    if actual_mode == "turbo":
-        processed_text_val, params = process_text_tags(text, params)
+    # Process text tags for BOTH modes to allow dynamic param tuning
+    # even if the model doesn't support the tags, removing them is good
+    processed_text_val, params = process_text_tags(text, params)
     
     prompt_path = None
     should_cleanup_prompt = False
@@ -371,13 +541,11 @@ async def generate_tts(
         should_cleanup_prompt = True
     elif voice_id:
         # Use a stored voice clone from the local 'voices' directory
-        # Support both 'Jorgete' and 'Jorgete.wav' styles
         clean_voice_id = voice_id.replace(".wav", "")
         voice_path = os.path.join(VOICES_DIR, f"{clean_voice_id}.wav")
         
         if os.path.exists(voice_path):
             prompt_path = voice_path
-            print(f"✅ Using stored voice: {voice_path}")
         else:
             # Try to find by name in metadata if filename mismatch
             metadata = get_voice_metadata()
@@ -386,7 +554,6 @@ async def generate_tts(
                 voice_path = os.path.join(VOICES_DIR, v_filename)
                 if os.path.exists(voice_path):
                     prompt_path = voice_path
-                    print(f"✅ Using stored voice (from metadata): {voice_path}")
             
             if not prompt_path:
                 raise HTTPException(status_code=404, detail=f"Voice clone '{voice_id}' not found in local storage.")
@@ -394,20 +561,56 @@ async def generate_tts(
     try:
         if prompt_path:
             # Generate speech using the reference voice (cloning)
-            if actual_mode == "multilingual":
-                # Multilingual model parameters
-                wav = m.generate(processed_text_val, audio_prompt_path=prompt_path, language_id=language_id, 
-                                 temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
-                                 repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
+            
+            # SPLIT LONG TEXT to prevent cut-off
+            import re
+            # Split but KEEP the delimiter to preserve punctuation/tone
+            # This uses a lookbehind to keep . ! ?
+            chunks = re.split(r'(?<=[.!?])\s+', processed_text_val)
+            chunks = [c.strip() for c in chunks if c.strip()]
+            
+            # If re.split failed to find delimiters, we fall back to simple split or slice
+            if len(chunks) == 1 and len(processed_text_val) > 150:
+                 # Last resort: split by comma if no periods
+                 chunks = re.split(r'(?<=,)\s+', processed_text_val)
+                 chunks = [c.strip() for c in chunks if c.strip()]
+            
+            if len(chunks) > 1:
+                print(f"📦 Splitting text into {len(chunks)} chunks...")
+                chunk_wavs = []
+                for i, chunk in enumerate(chunks):
+                    print(f"  - Part {i+1}/{len(chunks)}: '{chunk[:30]}...'")
+                    if actual_mode == "multilingual":
+                        w = m.generate(chunk, audio_prompt_path=prompt_path, language_id=language_id, 
+                                         temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
+                                         repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
+                    else:
+                        w = m.generate(chunk, audio_prompt_path=prompt_path, 
+                                         temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
+                                         repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
+                    chunk_wavs.append(w)
+                
+                # Concatenate waves
+                wav = torch.cat(chunk_wavs, dim=1)
             else:
-                # Turbo model parameters
-                wav = m.generate(processed_text_val, audio_prompt_path=prompt_path, 
-                                 temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
-                                 repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
+                # Normal generation for short text
+                if actual_mode == "multilingual":
+                    # Multilingual model parameters
+                    wav = m.generate(processed_text_val, audio_prompt_path=prompt_path, language_id=language_id, 
+                                     temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
+                                     repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
+                else:
+                    # Turbo model parameters
+                    wav = m.generate(processed_text_val, audio_prompt_path=prompt_path, 
+                                     temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
+                                     repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
         else:
             return {"error": "audio_prompt or voice_id is required for Chatterbox"}
 
-
+        # Mix Ambience if requested
+        if ambience_id:
+             print(f"🔉 Mixing ambience: {ambience_id}")
+             wav = mix_ambience(wav, ambience_id, m.sr)
 
         out_id = str(uuid.uuid4())
         out_filename = f"gen_{out_id}.wav"
@@ -425,8 +628,6 @@ async def generate_tts(
             "language_id": language_id if actual_mode == "multilingual" else "en",
             "timestamp": datetime.now().isoformat(),
             "user": username
-
-
         }
         save_to_history(history_entry)
         

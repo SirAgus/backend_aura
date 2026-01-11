@@ -282,5 +282,295 @@
         "language_id": "es",
         "timestamp": "2026-01-04T19:25:20.898856",
         "user": "upfint"
+    },
+    {
+        "id": "bb110939-8dae-4b3e-bb37-b8ce280ec7d8",
+        "text": "hi today is very cold, i need a coffe",
+        "filename": "gen_bb110939-8dae-4b3e-bb37-b8ce280ec7d8.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T12:46:00.893354",
+        "user": "admin"
+    },
+    {
+        "id": "74747964-c5ae-47c6-a8d5-16149404113f",
+        "text": "holaaaa",
+        "filename": "gen_74747964-c5ae-47c6-a8d5-16149404113f.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T12:49:58.198580",
+        "user": "admin"
+    },
+    {
+        "id": "c71d9c25-65f4-4f08-ac2f-4fd2e9da5dc4",
+        "text": "hola que tal tortuguitaaaaa",
+        "filename": "gen_c71d9c25-65f4-4f08-ac2f-4fd2e9da5dc4.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T12:50:32.543823",
+        "user": "admin"
+    },
+    {
+        "id": "41a17d65-a2d4-46e0-90a4-336ed2165f59",
+        "text": "hola que tal tortuguitaaaaa",
+        "filename": "gen_41a17d65-a2d4-46e0-90a4-336ed2165f59.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T12:50:51.776140",
+        "user": "admin"
+    },
+    {
+        "id": "0b97cc5f-a5ad-47da-a31f-1111734868d0",
+        "text": "hola que tal tortuguita, como va todo?? tiene hambre??",
+        "filename": "gen_0b97cc5f-a5ad-47da-a31f-1111734868d0.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T12:51:26.041699",
+        "user": "admin"
+    },
+    {
+        "id": "86098d7d-ac7b-45ef-8db0-70df2551ceeb",
+        "text": "hola amorcito como esta su cabecita?",
+        "filename": "gen_86098d7d-ac7b-45ef-8db0-70df2551ceeb.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T12:55:28.086565",
+        "user": "admin"
+    },
+    {
+        "id": "ac6fcd63-8214-4aa6-9dab-d0ff756ace73",
+        "text": "juego de mierda",
+        "filename": "gen_ac6fcd63-8214-4aa6-9dab-d0ff756ace73.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:02:51.566506",
+        "user": "admin"
+    },
+    {
+        "id": "4c474d6e-d53c-482f-a163-3b6f9ed48eed",
+        "text": "juego de mierda",
+        "filename": "gen_4c474d6e-d53c-482f-a163-3b6f9ed48eed.wav",
+        "voice_used": "carlfm",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:03:12.094208",
+        "user": "admin"
+    },
+    {
+        "id": "9a435e87-decf-4d83-82c8-7305a78c6bb5",
+        "text": "jugadores de mierda",
+        "filename": "gen_9a435e87-decf-4d83-82c8-7305a78c6bb5.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:06:04.941635",
+        "user": "admin"
+    },
+    {
+        "id": "76bbf05e-f0c9-4a38-a734-d5d8261cce00",
+        "text": "jugadores de mierda",
+        "filename": "gen_76bbf05e-f0c9-4a38-a734-d5d8261cce00.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:06:34.552426",
+        "user": "admin"
+    },
+    {
+        "id": "d9d78191-aba9-480f-911b-e6782309b15a",
+        "text": "jugadores de mierda",
+        "filename": "gen_d9d78191-aba9-480f-911b-e6782309b15a.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:06:47.253303",
+        "user": "admin"
+    },
+    {
+        "id": "4c890773-f647-451c-98d9-8f7908ce57d6",
+        "text": "jugadores de mierda",
+        "filename": "gen_4c890773-f647-451c-98d9-8f7908ce57d6.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:07:06.168935",
+        "user": "admin"
+    },
+    {
+        "id": "ec2821bc-9827-40e2-8be3-ed936bf4a20e",
+        "text": "SI comprese un aire papi",
+        "filename": "gen_ec2821bc-9827-40e2-8be3-ed936bf4a20e.wav",
+        "voice_used": "davefx",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:16:43.254819",
+        "user": "admin"
+    },
+    {
+        "id": "e1e5cd17-180e-4bb5-9764-4fe9a8502293",
+        "text": "SI comprese un aire papi",
+        "filename": "gen_e1e5cd17-180e-4bb5-9764-4fe9a8502293.wav",
+        "voice_used": "davefx",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:17:55.555645",
+        "user": "admin"
+    },
+    {
+        "id": "73b229a9-9579-4409-9bfb-c1bf8b41f49d",
+        "text": "SI comprese un aire papi",
+        "filename": "gen_73b229a9-9579-4409-9bfb-c1bf8b41f49d.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:18:15.982770",
+        "user": "admin"
+    },
+    {
+        "id": "2ec36fa9-d239-4cc0-a424-8be01d5cb0e1",
+        "text": "SI comprese un aire papi",
+        "filename": "gen_2ec36fa9-d239-4cc0-a424-8be01d5cb0e1.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:18:34.896048",
+        "user": "admin"
+    },
+    {
+        "id": "faacf35d-1572-48c8-9d3d-d12be4c9890f",
+        "text": "SI comprese un aire papi",
+        "filename": "gen_faacf35d-1572-48c8-9d3d-d12be4c9890f.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:18:56.954324",
+        "user": "admin"
+    },
+    {
+        "id": "615523ab-95ab-43b3-93e8-a2e25630151e",
+        "text": "SI comprese un aire papi",
+        "filename": "gen_615523ab-95ab-43b3-93e8-a2e25630151e.wav",
+        "voice_used": "agus",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T13:19:19.913372",
+        "user": "admin"
+    },
+    {
+        "id": "9ed4acd6-4ae1-40cf-ab4c-33047e9af837",
+        "text": "\u00a1No puedo creer que finalmente lo hayamos logrado! [feliz] Mira c\u00f3mo caen los rayos mientras celebramos este momento incre\u00edble. \u00a1Es simplemente \u00e9pico, nada puede detenernos ahora!",
+        "filename": "gen_9ed4acd6-4ae1-40cf-ab4c-33047e9af837.wav",
+        "voice_used": "sharvard",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T17:16:25.370320",
+        "user": "admin"
+    },
+    {
+        "id": "a8222c84-d107-4432-89b3-74f5c26e0c9a",
+        "text": "\u00a1No puedo creer que finalmente lo hayamos logrado! [feliz] Mira c\u00f3mo caen los rayos mientras celebramos este momento incre\u00edble. \u00a1Es simplemente \u00e9pico, nada puede detenernos ahora!",
+        "filename": "gen_a8222c84-d107-4432-89b3-74f5c26e0c9a.wav",
+        "voice_used": "sharvard",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T17:20:35.155113",
+        "user": "admin"
+    },
+    {
+        "id": "513db48e-a798-4245-9101-28420d7cd75a",
+        "text": "\u00a1No puedo creer que finalmente lo hayamos logrado! [feliz] Mira c\u00f3mo caen los rayos mientras celebramos este momento incre\u00edble. \u00a1Es simplemente \u00e9pico, nada puede detenernos ahora!",
+        "filename": "gen_513db48e-a798-4245-9101-28420d7cd75a.wav",
+        "voice_used": "sharvard",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T17:28:19.065310",
+        "user": "admin"
+    },
+    {
+        "id": "89aa76fd-1bbc-4aac-9683-c86ae92366d0",
+        "text": "\u00a1No puedo creer que finalmente lo hayamos logrado! Mira c\u00f3mo caen los rayos mientras celebramos este momento incre\u00edble \u00a1Es simplemente \u00e9pico, nada puede detenernos ahora!",
+        "filename": "gen_89aa76fd-1bbc-4aac-9683-c86ae92366d0.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T18:07:37.801020",
+        "user": "admin"
+    },
+    {
+        "id": "f354cf72-c9c7-42f2-b233-1ceb89bf8d53",
+        "text": "\u00a1No puedo creer que finalmente lo hayamos logrado! Mira c\u00f3mo caen los rayos mientras celebramos este momento incre\u00edble \u00a1Es simplemente \u00e9pico, nada puede detenernos ahora!",
+        "filename": "gen_f354cf72-c9c7-42f2-b233-1ceb89bf8d53.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T18:08:53.745194",
+        "user": "admin"
+    },
+    {
+        "id": "714bec89-d99a-4d7e-8d7f-bb65ad216242",
+        "text": "\u00a1No puedo creer que finalmente lo hayamos logrado! Mira c\u00f3mo caen los rayos mientras celebramos este momento incre\u00edble \u00a1Es simplemente \u00e9pico, nada puede detenernos ahora!",
+        "filename": "gen_714bec89-d99a-4d7e-8d7f-bb65ad216242.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T18:14:34.172925",
+        "user": "admin"
+    },
+    {
+        "id": "387c45c4-fe3f-4cf2-b72d-82ef39af0837",
+        "text": "hola",
+        "filename": "gen_387c45c4-fe3f-4cf2-b72d-82ef39af0837.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T18:18:32.137091",
+        "user": "admin"
+    },
+    {
+        "id": "b436ea1e-796a-456f-9d81-1f3d18d6eea1",
+        "text": "hola papi que tal todo\u00a1\u00a1",
+        "filename": "gen_b436ea1e-796a-456f-9d81-1f3d18d6eea1.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T18:19:41.816033",
+        "user": "admin"
+    },
+    {
+        "id": "6839373a-614e-4af2-9361-ef6fe123a1f9",
+        "text": "hola papi que tal todo\u00a1\u00a1",
+        "filename": "gen_6839373a-614e-4af2-9361-ef6fe123a1f9.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T18:20:01.127176",
+        "user": "admin"
+    },
+    {
+        "id": "b7f23e00-8f02-464b-b74e-48f1d3d65e07",
+        "text": "holaa",
+        "filename": "gen_b7f23e00-8f02-464b-b74e-48f1d3d65e07.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T18:26:53.578564",
+        "user": "admin"
+    },
+    {
+        "id": "515e481e-c87e-49c2-a848-53a1e8219da0",
+        "text": "Hab\u00eda una vez una ciudad que no aparec\u00eda en los mapas. No porque fuera secreta, sino porque cambiaba de lugar cada noche, como si el mundo se diera la vuelta mientras dorm\u00eda. A veces amanec\u00eda junto al mar, otras en medio del desierto, y en ocasiones sobre una colina desde la que se ve\u00eda todo y nada al mismo tiempo.\r\n\r\nEn esa ciudad viv\u00eda El\u00edas, un cart\u00f3grafo con un problema peculiar: sus mapas siempre quedaban obsoletos antes de secarse la tinta. En lugar de rendirse, empez\u00f3 a dibujar otra cosa. No calles ni edificios, sino recuerdos. Marcaba con cuidado d\u00f3nde alguien hab\u00eda re\u00eddo por \u00faltima vez, d\u00f3nde una promesa se hab\u00eda roto, d\u00f3nde el miedo se hab\u00eda quedado a vivir.\r\n\r\nUna noche, mientras trazaba el recuerdo de un abrazo perdido, la ciudad se detuvo. El silencio fue tan profundo que parec\u00eda reci\u00e9n inventado. El\u00edas sali\u00f3 a la calle y vio que las casas lo observaban, expectantes, como si aguardaran una decisi\u00f3n.\r\n\r\nComprendi\u00f3 entonces que la ciudad no se mov\u00eda por azar. Se desplazaba buscando sentido, y sus habitantes, ocupados en sobrevivir, lo hab\u00edan olvidado. Los mapas de recuerdos hab\u00edan sido suficientes para anclarla.\r\n\r\nAl amanecer, la ciudad segu\u00eda en el mismo sitio. Por primera vez, alguien pudo se\u00f1alarla en un mapa com\u00fan. No dur\u00f3 mucho: cuando los recuerdos comenzaron a descuidarse de nuevo, la ciudad volvi\u00f3 a caminar.\r\n\r\nDesde entonces, algunos dicen que si un lugar te resulta imposible de encontrar, no es porque est\u00e9 lejos, sino porque a\u00fan no has vivido nada importante all\u00ed.\r\n",
+        "filename": "gen_515e481e-c87e-49c2-a848-53a1e8219da0.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T18:43:36.179036",
+        "user": "admin"
     }
 ]

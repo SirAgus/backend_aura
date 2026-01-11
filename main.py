@@ -185,16 +185,23 @@ def process_text_tags(text, current_params):
     import re
     
     # 1. Onomatopoeias (Sound Effects)
+    # Map Spanish tags to valid Model Tags (do NOT replace with text "haha", use the tag "[laugh]")
     replacements = {
-        r"\[risa\]": " ¡jajaja! ",
-        r"\[laugh\]": " haha! ",
-        r"\[laught\]": " haha! ", # Typos support
-        r"\[jaja\]": " ¡ja ja ja! ",
-        r"\[suspiro\]": " ...aaaaay... ",
-        r"\[sigh\]": " ...ahh... ",
-        r"\[tos\]": " cof cof ",
-        r"\[beso\]": " mua ",
+        r"\[risa\]": " [laugh] ",
+        r"\[laught\]": " [laugh] ", # Typos support
+        r"\[jaja\]": " [laugh] ",
+        r"\[suspiro\]": " [sigh] ",
+        r"\[tos\]": " [cough] ",
+        r"\[carraspeo\]": " [clear throat] ",
+        r"\[chistar\]": " [shush] ",
+        r"\[quejido\]": " [groan] ",
+        r"\[olfatear\]": " [sniff] ",
+        r"\[jadeo\]": " [gasp] ",
+        r"\[risita\]": " [chuckle] ",
+        
+        # Keep these as text if they aren't supported model tags
         r"\[pausa\]": " ... ",
+        r"\[beso\]": " mua ",
     }
     
     for pattern, replacement in replacements.items():
@@ -306,16 +313,51 @@ async def generate_tts(
     min_p: float = Form(0.05), # Minimum probability filter.
     username: str = Depends(authenticate)
 ):
-    m = get_model(mode)
+    # Determine mode:
+    # 1. If voice_id is provided, check its metadata to see if it has a preferred model.
+    # 2. If the preferred model is "chatterbox-multilingual", set mode="multilingual".
+    # 3. If the preferred model is "chatterbox-turbo" or "chatterbox-original", set mode="turbo".
+    # 4. If nothing found in metadata, fallback to the 'mode' parameter passed in request.
+
+    target_mode = mode
+    
+    if voice_id:
+        try:
+             metadata = get_voice_metadata()
+             # handle both 'voice_id' and 'voice_id.wav' inputs
+             clean_id = voice_id.replace(".wav", "")
+             
+             if clean_id in metadata:
+                 voice_model = metadata[clean_id].get("model")
+                 if voice_model == "chatterbox-multilingual":
+                     target_mode = "multilingual"
+                 elif voice_model == "chatterbox-turbo" or voice_model == "chatterbox-original":
+                     target_mode = "turbo"
+        except:
+            pass
+
+    m = get_model(target_mode)
     from chatterbox.tts_turbo import ChatterboxTurboTTS
     actual_mode = "turbo" if isinstance(m, ChatterboxTurboTTS) else "multilingual"
 
-    print(f"🚀 TTS Request: Mode [{actual_mode}], Language ID [{language_id}], Voice ID [{voice_id if voice_id else 'upload'}]")
+    print(f"🚀 TTS Request: Mode [{actual_mode}] (Requested: {target_mode}), Voice ID [{voice_id if voice_id else 'upload'}]")
     if actual_mode == "turbo" and language == "es":
         print("💡 Tip: Usando modo 'turbo' con español. Para mejor acento, usa mode='multilingual'.")
-
-
-
+    
+    # Process text tags ONLY if using Turbo model (as per request specs)
+    # Multilingual doesn't support paralinguistic tags in this implementation
+    processed_text_val = text
+    params = {
+        "temperature": temperature,
+        "exaggeration": exaggeration,
+        "cfg_weight": cfg,
+        "repetition_penalty": repetition_penalty,
+        "top_p": top_p,
+        "min_p": min_p
+    }
+    
+    if actual_mode == "turbo":
+        processed_text_val, params = process_text_tags(text, params)
     
     prompt_path = None
     should_cleanup_prompt = False
@@ -354,12 +396,12 @@ async def generate_tts(
             # Generate speech using the reference voice (cloning)
             if actual_mode == "multilingual":
                 # Multilingual model parameters
-                wav = m.generate(processed_text, audio_prompt_path=prompt_path, language_id=language_id, 
+                wav = m.generate(processed_text_val, audio_prompt_path=prompt_path, language_id=language_id, 
                                  temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
                                  repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
             else:
                 # Turbo model parameters
-                wav = m.generate(processed_text, audio_prompt_path=prompt_path, 
+                wav = m.generate(processed_text_val, audio_prompt_path=prompt_path, 
                                  temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
                                  repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
         else:
@@ -409,6 +451,7 @@ async def upload_voice_clone(
     region: str = Form(None),
     gender: str = Form(None),
     description: str = Form(None),
+    model: str = Form("chatterbox-turbo"),
     username: str = Depends(authenticate)
 ):
     """Saves a voice sample locally with metadata."""
@@ -430,6 +473,7 @@ async def upload_voice_clone(
             "region": region,
             "gender": gender,
             "description": description,
+            "model": model,
             "uploaded_by": username,
             "uploaded_at": datetime.now().isoformat()
         }
@@ -547,6 +591,7 @@ async def update_voice(
     language: str = None,
     region: str = None, 
     description: str = None,
+    model: str = None,
     username: str = Depends(authenticate)
 ):
     """Rename a voice or update its metadata. Accepts Query Params."""
@@ -574,6 +619,7 @@ async def update_voice(
     if language: metadata[voice_id]["language"] = language
     if region: metadata[voice_id]["region"] = region
     if description: metadata[voice_id]["description"] = description
+    if model: metadata[voice_id]["model"] = model
     
     # Handle rename
     if new_name and new_name != voice_id:

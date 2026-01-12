@@ -12,3 +12,27 @@ python-dotenv
 requests
 huggingface_hub
 Pathlib
+# AudioGen / Audiocraft dependencies
+audiocraft
+av
+omegaconf
+hydra-core
+einops
+julius
+diffq
+transformers
+sentencepiece
+num2words
+tqdm
+spacy
+flashy
+demucs
+encodec
+torchmetrics
+hydra_colorlog
+dora-search
+colorlog
+lameenc
+openunmix
+lightning-utilities
+pytorch-lightning

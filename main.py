@@ -9,6 +9,50 @@ import torchaudio as ta
 # TTS Models: ChatterboxTurboTTS and ChatterboxMultilingualTTS
 print("ℹ️ Multi-model support enabled (Turbo and Multilingual)")
 
+import sys
+import types
+from unittest.mock import MagicMock
+
+# Mock xformers before importing audiocraft
+# We use ModuleType and provide a __spec__ to satisfy libraries like 'diffusers'
+def mock_module(name):
+    m = types.ModuleType(name)
+    m.__spec__ = importlib.machinery.ModuleSpec(name, None)
+    return m
+
+import importlib.machinery
+xformers_mock = mock_module("xformers")
+xformers_mock.__version__ = "0.0.22"
+xformers_ops_mock = mock_module("xformers.ops")
+xformers_ops_mock.unbind = torch.unbind
+# Frequently checked attributes
+xformers_ops_mock.fmha = MagicMock()
+xformers_ops_mock.memory_efficient_attention = MagicMock()
+xformers_ops_mock.LowerTriangularMask = MagicMock()
+xformers_mock.ops = xformers_ops_mock
+
+# Add info module and version check for deeper validations
+xformers_info_mock = mock_module("xformers.info")
+xformers_info_mock.get_xformers_version = lambda: "0.0.22"
+xformers_mock.info = xformers_info_mock
+
+# Mock fairinternal checkpoint
+xformers_checkpoint_mock = mock_module("xformers.checkpoint_fairinternal")
+xformers_checkpoint_mock.checkpoint = MagicMock()
+xformers_checkpoint_mock._get_default_policy = MagicMock()
+
+sys.modules["xformers"] = xformers_mock
+sys.modules["xformers.ops"] = xformers_ops_mock
+sys.modules["xformers.info"] = xformers_info_mock
+sys.modules["xformers.checkpoint_fairinternal"] = xformers_checkpoint_mock
+
+try:
+    from audiocraft.models import AudioGen
+    print("✅ Audiocraft AudioGen support loaded")
+except ImportError:
+    print("⚠️ Audiocraft not found or could not be loaded. Dynamic ambience disabled.")
+    AudioGen = None
+
 import shutil
 import json
 from datetime import datetime
@@ -215,7 +259,7 @@ def download_default_ambience():
                     noise = noise * 0.05
                 ta.save(str(fname), noise.real if torch.is_complex(noise) else noise, sr)
 
-download_default_ambience()
+# download_default_ambience()
 
 # Enable CORS for the frontend
 app.add_middleware(
@@ -238,7 +282,33 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
 
 # Load the models (cached)
 models = {"turbo": None, "multilingual": None, "original": None}
+audiogen_model = None
 
+def get_audiogen():
+    global audiogen_model
+    if AudioGen is None:
+        return None
+    if audiogen_model is None:
+        # Use MPS if available for Apple Silicon M4, else CPU
+        device = "mps" if torch.backends.mps.is_available() else "cpu"
+        print(f"🚀 Loading AudioGen model on {device}...")
+        try:
+            # AudioGen-Medium is ~1.5B parameters. M4 handles it well on MPS.
+            audiogen_model = AudioGen.get_pretrained('facebook/audiogen-medium', device=device)
+            print(f"✅ AudioGen loaded and optimized for {device}!")
+        except Exception as e:
+            print(f"⚠️ Failed to load AudioGen on {device}: {e}")
+            if device == "mps":
+                print("🔄 Falling back to CPU for AudioGen...")
+                try:
+                    audiogen_model = AudioGen.get_pretrained('facebook/audiogen-medium', device="cpu")
+                    print("✅ AudioGen loaded on CPU (slower but safe).")
+                except Exception as e2:
+                    print(f"❌ Failed to load AudioGen even on CPU: {e2}")
+                    return None
+            else:
+                return None
+    return audiogen_model
 
 def get_model(mode="turbo"):
     global models
@@ -306,38 +376,57 @@ def generate_brown_noise(duration_sec=30, sr=24000):
         ta.save(path, brown.unsqueeze(0), sr)
         print(f"✅ Generated sample ambience: {path}")
 
-generate_brown_noise() # Run on startup
+# generate_brown_noise() # Disabled
 
-def mix_ambience(voice_wav, ambience_id, sr):
-    """Mixes voice tensor with an ambience file."""
-    if not ambience_id:
+def mix_ambience(voice_wav, ambience_id, sr, ambience_prompt=None, min_duration=0.0):
+    """Mixes voice tensor with an ambience file or a custom prompt."""
+    if not ambience_id and not ambience_prompt:
         return voice_wav
         
-    print(f"DEBUG: mix_ambience called with id={ambience_id}, sr={sr}")
-    amb_path = os.path.join(AMBIENCE_DIR, f"{ambience_id}.wav")
-    if not os.path.exists(amb_path):
-        print(f"⚠️ Ambience file not found: {amb_path}")
+    print(f"DEBUG: mix_ambience called with id={ambience_id}, prompt={ambience_prompt}, sr={sr}")
+    
+    # Define actual path
+    if ambience_id == "custom" and ambience_prompt:
+        import hashlib
+        prompt_hash = hashlib.md5(ambience_prompt.encode()).hexdigest()
+        amb_path = os.path.join(AMBIENCE_DIR, f"custom_{prompt_hash}.wav")
+        prompt = ambience_prompt
+    elif ambience_id:
+        amb_path = os.path.join(AMBIENCE_DIR, f"{ambience_id}.wav")
+        # Map IDs to high quality prompts
+        prompts = {
+            "birds": "vibrant birds singing in a lush tropical forest with distant wind and leaves rustling, high quality, organic",
+            "forest": "deep forest ambience with wind through old trees, distant owls, and cracking branches, cinematic",
+            "beach": "calm ocean waves crashing on a sandy beach with distant seagulls and soft wind breeze, high quality",
+            "rain": "textured heavy rain falling on a metal roof with soft distant thunder rolling, spatial",
+            "storm": "intense thunderstorm with heavy rain, wind whistling, and powerful thunder cracks nearby",
+            "office": "busy professional office background with keyboard typing, soft hum of AC, and distant corporate chatter",
+            "cafe": "cozy european cafe atmosphere with the sound of ceramic cups, soft jazz in background, and muffled conversations",
+            "lofi": "chill lofi hip hop beat with vinyl crackle for focus and study",
+            "static": "smooth pink noise constant hum for focus",
+            "ags": "premium high-tech cinematic drone with soft digital pulses, clean room air suction, and futuristic laboratory hum, 8k audio"
+        }
+        prompt = prompts.get(ambience_id, f"{ambience_id} background sound, high quality")
+    else:
         return voice_wav
 
     try:
-        # 1. Ensure voice_wav is a Tensor on CPU
-        if not isinstance(voice_wav, torch.Tensor):
-            if hasattr(voice_wav, '__array__'): # Numpy
-                voice_wav = torch.from_numpy(voice_wav)
-            elif isinstance(voice_wav, list):
-                voice_wav = torch.tensor(voice_wav)
+        # Load or Generate Ambience
+        if not os.path.exists(amb_path) or os.path.getsize(amb_path) < 1000:
+            model = get_audiogen()
+            if model:
+                print(f"🪄 [AudioGen] Generating Ambience for: '{prompt}'")
+                model.set_generation_params(duration=10)
+                gen_wav = model.generate([prompt], progress=False)
+                amb_wav = gen_wav[0].cpu()
+                amb_sr = 32000
+                ta.save(amb_path, amb_wav, amb_sr)
+                print(f"💾 Cached new ambience: {amb_path}")
             else:
-                print(f"⚠️ Unknown voice_wav type: {type(voice_wav)}")
                 return voice_wav
-        
-        voice_wav = voice_wav.detach().cpu()
-        if voice_wav.dim() == 1:
-            voice_wav = voice_wav.unsqueeze(0) # [1, T]
-            
-        print(f"DEBUG: voice_wav shape: {voice_wav.shape}")
+        else:
+            amb_wav, amb_sr = ta.load(amb_path)
 
-        # 2. Load Ambience
-        amb_wav, amb_sr = ta.load(amb_path)
         amb_wav = amb_wav.detach().cpu()
         
         # 3. Resample
@@ -359,6 +448,33 @@ def mix_ambience(voice_wav, ambience_id, sr):
             amb_wav = amb_wav / a_max
             
         print(f"DEBUG: Normalized voice (max={v_max:.2f}) and ambience (max={a_max:.2f})")
+        
+        # 5. Handle Min Duration (Padding)
+        voice_len = voice_wav.shape[1]
+        amb_len = amb_wav.shape[1]
+        
+        # Calculate samples needed for min_duration
+        if min_duration > 0:
+            min_samples = int(min_duration * sr)
+            if voice_len < min_samples:
+                # Pad voice with silence at the end
+                pad_size = min_samples - voice_len
+                print(f"DEBUG: Padding voice with {pad_size} samples to reach {min_duration}s")
+                pad = torch.zeros((1, pad_size))
+                voice_wav = torch.cat([voice_wav, pad], dim=1)
+                voice_len = voice_wav.shape[1]
+
+        # 6. Loop or cut ambience to match voice length
+        if amb_len < voice_len:
+            # Loop ambience
+            repeats = (voice_len // amb_len) + 1
+            amb_wav = amb_wav.repeat(1, repeats)
+            amb_wav = amb_wav[:, :voice_len]
+        else:
+            amb_wav = amb_wav[:, :voice_len]
+            
+        # 7. Mix with less volume for ambience
+        mixed = voice_wav + (amb_wav * 0.15)
             
         # 5. Loop/Repeat or Seek Random Ambience
         voice_len = voice_wav.shape[1]
@@ -393,18 +509,33 @@ def mix_ambience(voice_wav, ambience_id, sr):
         # Return original audio if mixing fails
         return voice_wav
 
-def process_text_tags(text, current_params):
+def process_text_tags(text, current_params, mode="turbo"):
     """
-    Parses tags like [risa], [happy] and modifies the text or parameters.
-    Returns: (modified_text, modified_params)
+    Parses tags and identifies context.
+    Returns: (modified_text, modified_params, auto_ambience)
     """
     import re
     
-    # 1. Onomatopoeias (Sound Effects)
-    # Map Spanish tags to valid Model Tags (do NOT replace with text "haha", use the tag "[laugh]")
+    # 1. Automatic Ambience Context Detection (if no tags are used)
+    auto_ambience = None
+    context_keywords = {
+        "rain": ["lluvia", "llueve", "lloviendo", "tormenta", "rain", "storm"],
+        "beach": ["playa", "mar", "olas", "oceano", "beach", "ocean", "waves"],
+        "forest": ["bosque", "selva", "arboles", "naturaleza", "forest", "jungle", "woods"],
+        "birds": ["pajaros", "aves", "canto", "birds", "chirping"],
+        "cafe": ["cafe", "cafeteria", "barista", "restaurant", "coffe"],
+        "office": ["oficina", "trabajo", "tecleando", "office", "typing", "work"],
+        "lofi": ["estudiar", "relajo", "musica suave", "lofi", "study", "relax"],
+    }
+    
+    for amb_id, keywords in context_keywords.items():
+        if any(re.search(r'\b' + kw + r'\b', text, re.IGNORECASE) for kw in keywords):
+            auto_ambience = amb_id
+            break
+
+    # 2. Onomatopoeias (Sound Effects)
     replacements = {
         r"\[risa\]": " [laugh] ",
-        r"\[laught\]": " [laugh] ", # Typos support
         r"\[jaja\]": " [laugh] ",
         r"\[broma\]": " [laugh] ",
         r"\[suspiro\]": " [sigh] ",
@@ -415,8 +546,6 @@ def process_text_tags(text, current_params):
         r"\[olfatear\]": " [sniff] ",
         r"\[jadeo\]": " [gasp] ",
         r"\[risita\]": " [chuckle] ",
-        
-        # Keep these as text if they aren't supported model tags
         r"\[pausa\]": " ... ",
         r"\[beso\]": " mua ",
     }
@@ -428,36 +557,33 @@ def process_text_tags(text, current_params):
                 has_laughter = True
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
 
-    # 2. Dynamic Param Tuning for Naturalness
-    # If laughter is present, boost parameters to allow for more expressive/unstable outputs
+    # 3. Dynamic Param Tuning
     if has_laughter or "[laugh]" in text or "[chuckle]" in text:
-        # Laughter needs high temperature to sound real (chaos)
-        current_params["temperature"] = max(current_params.get("temperature", 0.7), 0.95)
-        current_params["exaggeration"] = max(current_params.get("exaggeration", 0.5), 0.7)
-        # Lower repetition penalty significantly for laughter, as it often involves rapid repetitive sounds
-        current_params["repetition_penalty"] = 1.0 
-        print("🎭 Laughter detected! Boosting temperature and lowering penalty for naturalness.")
+        current_params["temperature"] = max(current_params.get("temperature", 0.7), 1.1)
+        current_params["exaggeration"] = max(current_params.get("exaggeration", 0.5), 1.2)
+        current_params["repetition_penalty"] = 1.05
+        print("🎭 Laughter/Expressivity detected! Tuning params.")
 
-    # 3. Tone Tags
-    if re.search(r"\[(feliz|happy)\]", text, re.IGNORECASE):
-        current_params["exaggeration"] = max(current_params.get("exaggeration", 0.5), 1.5)
-        current_params["temperature"] = max(current_params.get("temperature", 0.8), 0.95)
-        current_params["repetition_penalty"] = max(current_params.get("repetition_penalty", 1.1), 1.15)
-        text = re.sub(r"\[(feliz|happy)\]", "", text, flags=re.IGNORECASE)
-        
-    if re.search(r"\[(triste|sad)\]", text, re.IGNORECASE):
-        current_params["exaggeration"] = 0.2
-        current_params["temperature"] = 0.6
-        current_params["cfg_weight"] = 0.8
-        text = re.sub(r"\[(triste|sad)\]", "", text, flags=re.IGNORECASE)
+    # 4. Tone Tags
+    tone_map = {
+        r"\[(feliz|happy)\]": {"exaggeration": 1.5, "temperature": 1.0},
+        r"\[(triste|sad)\]": {"exaggeration": 0.2, "temperature": 0.6, "cfg_weight": 0.9},
+        r"\[(serio|serious)\]": {"exaggeration": 0.4, "temperature": 0.5, "cfg_weight": 1.0},
+    }
+    
+    for pattern, p_updates in tone_map.items():
+        if re.search(pattern, text, re.IGNORECASE):
+            current_params.update(p_updates)
+            text = re.sub(pattern, "", text, flags=re.IGNORECASE)
 
-    if re.search(r"\[(serio|serious)\]", text, re.IGNORECASE):
-        current_params["exaggeration"] = 0.4
-        current_params["temperature"] = 0.5
-        current_params["cfg_weight"] = 0.9
-        text = re.sub(r"\[(serio|serious)\]", "", text, flags=re.IGNORECASE)
+    # 5. Model-Specific Cleaning
+    if mode == "multilingual":
+        para_tags = ["laugh", "sigh", "cough", "clear throat", "shush", "groan", "sniff", "gasp", "chuckle"]
+        for p_tag in para_tags:
+            text = text.replace(f"[{p_tag}]", "")
+            text = text.replace(f" [{p_tag}] ", " ")
 
-    return text.strip(), current_params
+    return text.strip(), current_params, auto_ambience
 
 def save_to_history(entry):
     history = []
@@ -483,10 +609,11 @@ async def generate_tts(
     temperature: float = Form(0.8), # Higher = more emotional/varied, Lower = more stable
     exaggeration: float = Form(0.5), # Higher = more expressive
     cfg: float = Form(0.6), # Slightly higher for more stability
-    repetition_penalty: float = Form(1.1), # LOWERED default from 1.15 to 1.1 for better flow
-    top_p: float = Form(0.9), # Nucleus sampling
     min_p: float = Form(0.05), # LOWERED to 0.05 for more expressiveness by default
-    ambience_id: str = Form(None), # New Ambience parameter
+    repetition_penalty: float = Form(2.0),
+    top_p: float = Form(1.0),
+    ambience_id: str = Form(None), # Predefined Ambience ID
+    ambience_prompt: str = Form(None), # Custom Ambience Prompt
     username: str = Depends(authenticate)
 ):
     # Determine mode:
@@ -527,9 +654,12 @@ async def generate_tts(
     
     # Process text tags for BOTH modes to allow dynamic param tuning
     # even if the model doesn't support the tags, removing them is good
-    processed_text_val, params = process_text_tags(text, params)
+    processed_text_val, params, auto_amb = process_text_tags(text, params, actual_mode)
     
-    prompt_path = None
+    # Apply auto ambience only if none is selected
+    if not ambience_id and not ambience_prompt and auto_amb:
+        print(f"🧠 [Auto-Context] Detected keyword, using ambience: {auto_amb}")
+        ambience_id = auto_amb
     should_cleanup_prompt = False
     
     if audio_prompt:
@@ -559,58 +689,111 @@ async def generate_tts(
                 raise HTTPException(status_code=404, detail=f"Voice clone '{voice_id}' not found in local storage.")
     
     try:
-        if prompt_path:
-            # Generate speech using the reference voice (cloning)
+        # --- DYNAMIC AMBIENCE TAG PARSING ---
+        # We look for [ambience:something] or predefined tags like [rain], [birds], etc.
+        active_ambience_id = ambience_id
+        active_ambience_prompt = ambience_prompt
+        
+        # regex to find [ambience:...] or just common tags, with optional duration
+        # We'll split the text into segments
+        import re
+        # IDs join
+        predefined_ids = ["rain", "birds", "forest", "beach", "storm", "office", "cafe", "lofi", "static", "fire", "wind", "ags"]
+        ids_pattern = "|".join(predefined_ids)
+        
+        tag_pattern = r"\[ambience:([^\]]+)\]|\[(" + ids_pattern + r"(?::\d+s)?)\]"
+        
+        parts = re.split(tag_pattern, processed_text_val)
+        # re.split returns: [text, group1, group2, text, ...]
+        
+        segments = []
+        current_text = ""
+        
+        # Initial state
+        seg_amb_id = active_ambience_id
+        seg_amb_prompt = active_ambience_prompt
+        seg_min_duration = 0.0
+
+        i = 0
+        while i < len(parts):
+            chunk = parts[i]
+            if chunk is None: chunk = ""
             
-            # SPLIT LONG TEXT to prevent cut-off
-            import re
-            # Split but KEEP the delimiter to preserve punctuation/tone
-            # This uses a lookbehind to keep . ! ?
-            chunks = re.split(r'(?<=[.!?])\s+', processed_text_val)
-            chunks = [c.strip() for c in chunks if c.strip()]
-            
-            # If re.split failed to find delimiters, we fall back to simple split or slice
-            if len(chunks) == 1 and len(processed_text_val) > 150:
-                 # Last resort: split by comma if no periods
-                 chunks = re.split(r'(?<=,)\s+', processed_text_val)
-                 chunks = [c.strip() for c in chunks if c.strip()]
-            
-            if len(chunks) > 1:
-                print(f"📦 Splitting text into {len(chunks)} chunks...")
-                chunk_wavs = []
-                for i, chunk in enumerate(chunks):
-                    print(f"  - Part {i+1}/{len(chunks)}: '{chunk[:30]}...'")
-                    if actual_mode == "multilingual":
-                        w = m.generate(chunk, audio_prompt_path=prompt_path, language_id=language_id, 
-                                         temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
-                                         repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
-                    else:
-                        w = m.generate(chunk, audio_prompt_path=prompt_path, 
-                                         temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
-                                         repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
-                    chunk_wavs.append(w)
-                
-                # Concatenate waves
-                wav = torch.cat(chunk_wavs, dim=1)
+            # If it's the text between tags
+            if i % 3 == 0:
+                if chunk.strip():
+                    segments.append({
+                        "text": chunk.strip(),
+                        "amb_id": seg_amb_id,
+                        "amb_prompt": seg_amb_prompt,
+                        "min_duration": seg_min_duration
+                    })
+                    seg_min_duration = 0.0 
+            # If it's a tag (group 1 or group 2)
             else:
-                # Normal generation for short text
+                val = chunk
+                if val:
+                    # Update state for next text chunks
+                    # Check for duration suffix ":10s"
+                    duration_match = re.search(r":(\d+)s$", val)
+                    new_duration = 0.0
+                    if duration_match:
+                        new_duration = float(duration_match.group(1))
+                        # Remove duration from value string
+                        val = val[:duration_match.start()]
+                        
+                    seg_min_duration = new_duration
+                    
+                    if i % 3 == 1: # [ambience:...] (Group 1)
+                        seg_amb_id = "custom"
+                        seg_amb_prompt = val
+                    else: # [predefined] (Group 2)
+                        seg_amb_id = val
+                        seg_amb_prompt = None
+            i += 1
+
+        # Fallback if no tags were found or split didn't result in segments
+        if not segments:
+            segments = [{"text": processed_text_val, "amb_id": active_ambience_id, "amb_prompt": active_ambience_prompt, "min_duration": 0.0}]
+
+        final_wavs = []
+        
+        for seg in segments:
+            txt = seg["text"]
+            aid = seg["amb_id"]
+            aprompt = seg["amb_prompt"]
+            dur = seg.get("min_duration", 0.0)
+            
+            print(f"  🧵 Generating segment: '{txt[:20]}...' with Ambience: {aid or aprompt or 'None'} (Duration: {dur}s)")
+            
+            # SPLIT LONG TEXT within segment if needed
+            chunks = re.split(r'(?<=[.!?])\s+', txt)
+            chunks = [c.strip() for c in chunks if c.strip()] or [txt]
+            
+            segment_wav_parts = []
+            for chunk in chunks:
                 if actual_mode == "multilingual":
-                    # Multilingual model parameters
-                    wav = m.generate(processed_text_val, audio_prompt_path=prompt_path, language_id=language_id, 
+                    w = m.generate(chunk, audio_prompt_path=prompt_path, language_id=language_id, 
                                      temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
                                      repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
                 else:
-                    # Turbo model parameters
-                    wav = m.generate(processed_text_val, audio_prompt_path=prompt_path, 
+                    w = m.generate(chunk, audio_prompt_path=prompt_path, 
                                      temperature=params["temperature"], exaggeration=params["exaggeration"], cfg_weight=params["cfg_weight"],
                                      repetition_penalty=params["repetition_penalty"], top_p=params["top_p"], min_p=params["min_p"])
-        else:
-            return {"error": "audio_prompt or voice_id is required for Chatterbox"}
+                segment_wav_parts.append(w)
+            
+            seg_voice_wav = torch.cat(segment_wav_parts, dim=1)
+            
+            # Mix Ambience for this specific segment
+            if aid or aprompt:
+                # Use m.sample_rate if available, else default
+                sr = m.sample_rate if hasattr(m, 'sample_rate') else 24000
+                seg_voice_wav = mix_ambience(seg_voice_wav, aid, sr, aprompt, min_duration=dur)
+            
+            final_wavs.append(seg_voice_wav)
 
-        # Mix Ambience if requested
-        if ambience_id:
-             print(f"🔉 Mixing ambience: {ambience_id}")
-             wav = mix_ambience(wav, ambience_id, m.sr)
+        # Concatenate all segments
+        wav = torch.cat(final_wavs, dim=1)
 
         out_id = str(uuid.uuid4())
         out_filename = f"gen_{out_id}.wav"

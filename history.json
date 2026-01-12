@@ -572,5 +572,85 @@
         "language_id": "es",
         "timestamp": "2026-01-11T18:43:36.179036",
         "user": "admin"
+    },
+    {
+        "id": "0f6879fd-8d28-4065-a008-4bc615d7f6c7",
+        "text": "hola como estas??",
+        "filename": "gen_0f6879fd-8d28-4065-a008-4bc615d7f6c7.wav",
+        "voice_used": "mls_10246",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T19:22:58.829851",
+        "user": "admin"
+    },
+    {
+        "id": "ad59ee4a-20a3-43fc-a60e-5a4431525c3f",
+        "text": "hola como estas??",
+        "filename": "gen_ad59ee4a-20a3-43fc-a60e-5a4431525c3f.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T19:25:31.753672",
+        "user": "admin"
+    },
+    {
+        "id": "82f0df25-4fe7-499c-b5a3-86e5d24d4dde",
+        "text": "hola como estas??",
+        "filename": "gen_82f0df25-4fe7-499c-b5a3-86e5d24d4dde.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T19:25:47.293726",
+        "user": "admin"
+    },
+    {
+        "id": "33517622-1800-40e6-95d0-a0abfcd2ffb8",
+        "text": "Hola que tal?, escuchas cantar los pajaros?",
+        "filename": "gen_33517622-1800-40e6-95d0-a0abfcd2ffb8.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T19:30:28.215630",
+        "user": "admin"
+    },
+    {
+        "id": "14d659b5-41d8-4352-8207-3adf8429bdf5",
+        "text": "Al amanecer, las aves se repart\u00edan el cielo como si fuera un mapa invisible. Ninguna discut\u00eda los l\u00edmites; cada una conoc\u00eda el peso exacto de sus alas y el lugar donde el viento la sosten\u00eda mejor. Desde abajo, el pueblo despertaba sin notar que sobre sus techos se ensayaba una antigua coreograf\u00eda.\r\n\r\nUn gorri\u00f3n viejo, con plumas gastadas por demasiados inviernos, observaba desde un cable. No volaba mucho ya, pero recordaba rutas que no figuraban en ning\u00fan horizonte. Cuando una bandada joven pas\u00f3 a su lado, el aire se tens\u00f3 un instante, como si el cielo escuchara. El gorri\u00f3n no dijo nada; inclin\u00f3 la cabeza, y ese gesto bast\u00f3 para que las otras aves corrigieran su rumbo.\r\n\r\nM\u00e1s tarde, cuando el sol ya estaba alto, el cielo qued\u00f3 casi vac\u00edo. Solo algunas plumas descend\u00edan lentamente, no como restos, sino como notas finales. El pueblo sigui\u00f3 con su d\u00eda, ignorando que hab\u00eda sido testigo de algo esencial: que el mundo se sostiene gracias a movimientos peque\u00f1os, precisos, y a memorias que a\u00fan saben volar.\r\n",
+        "filename": "gen_14d659b5-41d8-4352-8207-3adf8429bdf5.wav",
+        "voice_used": "daniela",
+        "mode": "turbo",
+        "language_id": "en",
+        "timestamp": "2026-01-11T20:01:07.582470",
+        "user": "admin"
+    },
+    {
+        "id": "201d9593-fd74-45bf-91b9-c310917039fc",
+        "text": "Al amanecer, las aves se repart\u00edan el cielo como si fuera un mapa invisible. Ninguna discut\u00eda los l\u00edmites; cada una conoc\u00eda el peso exacto de sus alas y el lugar donde el viento la sosten\u00eda mejor. Desde abajo, el pueblo despertaba sin notar que sobre sus techos se ensayaba una antigua coreograf\u00eda.\r\n\r\nUn gorri\u00f3n viejo, con plumas gastadas por demasiados inviernos, observaba desde un cable. No volaba mucho ya, pero recordaba rutas que no figuraban en ning\u00fan horizonte. Cuando una bandada joven pas\u00f3 a su lado, el aire se tens\u00f3 un instante, como si el cielo escuchara. El gorri\u00f3n no dijo nada; inclin\u00f3 la cabeza, y ese gesto bast\u00f3 para que las otras aves corrigieran su rumbo.\r\n\r\nM\u00e1s tarde, cuando el sol ya estaba alto, el cielo qued\u00f3 casi vac\u00edo. Solo algunas plumas descend\u00edan lentamente, no como restos, sino como notas finales. El pueblo sigui\u00f3 con su d\u00eda, ignorando que hab\u00eda sido testigo de algo esencial: que el mundo se sostiene gracias a movimientos peque\u00f1os, precisos, y a memorias que a\u00fan saben volar.\r\n",
+        "filename": "gen_201d9593-fd74-45bf-91b9-c310917039fc.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T20:07:48.553939",
+        "user": "admin"
+    },
+    {
+        "id": "c56ced05-9de4-4772-bc32-a11a04ad26f8",
+        "text": "[rain]\r\nAl amanecer, las aves se repart\u00edan el cielo como si fuera un mapa invisible. Ninguna discut\u00eda los l\u00edmites; cada una conoc\u00eda el peso exacto de sus alas y el lugar donde el viento la sosten\u00eda mejor. Desde abajo, el pueblo despertaba sin notar que sobre sus techos se ensayaba una antigua coreograf\u00eda.\r\n[birds] [forest:12s]\r\n\r\nUn gorri\u00f3n viejo, con plumas gastadas por demasiados inviernos, observaba desde un cable. No volaba mucho ya, pero recordaba rutas que no figuraban en ning\u00fan horizonte. Cuando una bandada joven pas\u00f3 a su lado, el aire se tens\u00f3 un instante, como si el cielo escuchara.\r\n[rain:10s]\r\n\r\nEl gorri\u00f3n no dijo nada; inclin\u00f3 la cabeza, y ese gesto bast\u00f3 para que las otras aves corrigieran su rumbo. El viento se aquiet\u00f3, y durante unos segundos todo pareci\u00f3 en equilibrio.\r\n[birds:6s]\r\n\r\nM\u00e1s tarde, cuando el sol ya estaba alto, el cielo qued\u00f3 casi vac\u00edo. Solo algunas plumas descend\u00edan lentamente, no como restos, sino como notas finales. El pueblo sigui\u00f3 con su d\u00eda, ignorando que hab\u00eda sido testigo de algo esencial.\r\n[office:8s]\r\n\r\nQue el mundo se sostiene gracias a movimientos peque\u00f1os, precisos, y a memorias que a\u00fan saben volar.\r\n[rain]",
+        "filename": "gen_c56ced05-9de4-4772-bc32-a11a04ad26f8.wav",
+        "voice_used": "daniela",
+        "mode": "turbo",
+        "language_id": "en",
+        "timestamp": "2026-01-11T20:52:44.337368",
+        "user": "admin"
+    },
+    {
+        "id": "9827aad1-9f01-4198-b38b-e2c988bd1ce6",
+        "text": "[rain]\r\nAl amanecer, las aves se repart\u00edan el cielo como si fuera un mapa invisible. Ninguna discut\u00eda los l\u00edmites; cada una conoc\u00eda el peso exacto de sus alas y el lugar donde el viento la sosten\u00eda mejor. Desde abajo, el pueblo despertaba sin notar que sobre sus techos se ensayaba una antigua coreograf\u00eda.\r\n[birds] [forest:12s]\r\n\r\nUn gorri\u00f3n viejo, con plumas gastadas por demasiados inviernos, observaba desde un cable. No volaba mucho ya, pero recordaba rutas que no figuraban en ning\u00fan horizonte. Cuando una bandada joven pas\u00f3 a su lado, el aire se tens\u00f3 un instante, como si el cielo escuchara.\r\n[rain:10s]\r\n\r\nEl gorri\u00f3n no dijo nada; inclin\u00f3 la cabeza, y ese gesto bast\u00f3 para que las otras aves corrigieran su rumbo. El viento se aquiet\u00f3, y durante unos segundos todo pareci\u00f3 en equilibrio.\r\n[birds:6s]\r\n\r\nM\u00e1s tarde, cuando el sol ya estaba alto, el cielo qued\u00f3 casi vac\u00edo. Solo algunas plumas descend\u00edan lentamente, no como restos, sino como notas finales. El pueblo sigui\u00f3 con su d\u00eda, ignorando que hab\u00eda sido testigo de algo esencial.\r\n[office:8s]\r\n\r\nQue el mundo se sostiene gracias a movimientos peque\u00f1os, precisos, y a memorias que a\u00fan saben volar.\r\n[rain]",
+        "filename": "gen_9827aad1-9f01-4198-b38b-e2c988bd1ce6.wav",
+        "voice_used": "daniela",
+        "mode": "multilingual",
+        "language_id": "es",
+        "timestamp": "2026-01-11T20:59:15.973895",
+        "user": "admin"
     }
 ]

@@ -703,7 +703,7 @@ async def generate_tts(
         
         tag_pattern = r"\[ambience:([^\]]+)\]|\[(" + ids_pattern + r"(?::\d+s)?)\]"
         
-        parts = re.split(tag_pattern, processed_text_val)
+        parts = re.split(tag_pattern, processed_text_val, flags=re.IGNORECASE)
         # re.split returns: [text, group1, group2, text, ...]
         
         segments = []

@@ -1,83 +1,108 @@
-# Voice Cloning API - Backend
+# Voice Backend API
+
+Backend robusto para síntesis de voz, clonación de audio e inteligencia artificial conversacional. Diseñado para ser escalable, seguro y fácil de desplegar.
 
 ## 1. De qué trata
-Esta es una API de síntesis y clonación de voz diseñada para funcionar localmente. Utiliza el modelo **ResembleAI/chatterbox-turbo** para generar audio a partir de texto (TTS) y clonar voces mediante referencias de audio.
+Esta API integra múltiples tecnologías de IA y gestión de datos:
+- **TTS & Voice Cloning**: Usa **Chatterbox-Turbo** para generar voz y clonar voces a partir de referencias (`.wav`).
+- **LLM Local**: Integra **Qwen 2.5 3B** para generación de texto inteligente y chat.
+- **Gestión de Base de Datos**: PostgreSQL para usuarios, hilos de chat, mensajes y metadatos de audios.
+- **Seguridad**: Autenticación vía **JWT** y encriptación de contraseñas con **BCrypt**.
+- **Ambientes Dinámicos**: Mezcla inteligente de sonidos de fondo (lluvia, oficina, etc.) usando fuentes de alta calidad.
 
-Soporta:
-- **Clonación de voz**: Usando una muestra de audio de referencia (wav).
-- **Ambiente dinámico**: Mezcla automática de sonidos de fondo (lluvia, oficina, etc.) usando AudioGen (si está disponible).
-- **Control expresivo**: Ajustes de temperatura, velocidad y estilos mediante tags en el texto.
-- **Gestión de voces**: Subida y almacenamiento de perfiles de voz.
+## 2. Requisitos Previos
 
-## 2. Qué se necesita para iniciar
-Para ejecutar este proyecto necesitas:
+### Opción A (Recomendada): Docker
+- **Docker** y **Docker Compose** instalados.
+- 4GB+ de RAM asignada a Docker (para cargar modelos de IA).
 
-- **Sistema Operativo**: macOS (optimizado para Apple Silicon M1/M2/M3) o Linux.
-- **Python**: Versión **3.11** (Requerida).
-- **Gestor de paquetes**: **PDM** (Python Dependency Manager).
-- **Dependencias del sistema**: `ffmpeg` y `pkg-config` (Necesarios para procesar audio).
-- **Espacio en disco**: ~2GB libres para modelos y dependencias.
-- **Variables de entorno**: Un archivo `.env` con las credenciales (ver ejemplo en el repositorio).
+### Opción B: Ejecución Local (Bare Metal)
+- **Sistema Operativo**: macOS (Apple Silicon) o Linux.
+- **Python**: 3.11 (Estricto).
+- **Gestor de Paquetes**: [PDM](https://pdm-project.org/).
+- **Base de Datos**: PostgreSQL 15+ corriendo localmente.
+- **Herramientas de Sistema**: `ffmpeg` (Requerido para procesamiento de audio. Instalar con `brew install ffmpeg`).
 
-## 3. Comandos para iniciar
-
-### Instalación
-Si es la primera vez, instala las dependencias dentro de la carpeta `backend`:
-
-```bash
-# Instalar dependencias con PDM
-pdm install
-```
-
-### Ejecución
-Elige uno de los siguientes modos para levantar el servidor en `http://0.0.0.0:8000`:
+## 3. Configuración (.env)
+Crea un archivo `.env` en la raíz con las siguientes variables:
 
 ```bash
-# Modo Producción
-pdm run start
+# Servidor & Seguridad
+SECRET_KEY=tu_super_secreto_para_jwt_cambialo
 
-# Modo Desarrollo (con recarga automática)
-pdm run dev
+# Base de Datos
+# Uso local:
+DATABASE_URL=postgresql://user:password@localhost:5432/voice_db
+# Uso Docker:
+# DATABASE_URL=postgresql://voice_user:voice_password@db:5432/voice_db
+
+# Almacenamiento
+STORAGE_DIR=outputs
+VOICES_DIR=voices
+
+# Modelos IA
+HF_TOKEN=tu_token_de_huggingface # Opcional, para descarga rápida
 ```
 
-> **Nota**: La primera vez que inicies, el servidor tardará unos minutos descargando los modelos necesarios.
+## 4. Iniciar el Proyecto y Despliegue
 
-## 4. Endpoints existentes y qué hacen
+### 🛠️ Desarrollo Local (Vía PDM)
+Ideal para programar y debuggear.
+1. Instalar dependencias:
+   ```bash
+   pdm install
+   ```
+2. Asegúrate de tener Postgres corriendo y configurar `.env`.
+3. Iniciar servidor (Modo recarga automática):
+   ```bash
+   pdm run dev
+   ```
 
-Todos los endpoints están protegidos por **Basic Auth** (usuario y contraseña definidos en `.env`).
+### 🐳 Docker Compose (Recomendado para inicio rápido)
+Levanta la BD y el Backend en contenedores aislados.
+```bash
+docker-compose up --build
+```
+- La primera vez tomará tiempo (descarga de imagen base).
+- La API estará en `http://localhost:8000`.
 
-### `GET /`
-- **Descripción**: Verifica el estado del servidor.
-- **Uso**: Health check para saber si la API está respondiendo.
+### 🚀 Despliegue en Producción
 
-### `POST /demo`
-- **Descripción**: Genera un audio rápido usando una configuración por defecto.
-- **Uso**: Pruebas rápidas de síntesis.
-- **Parámetros**: `text`.
+#### Opción A: Railway (Fácil)
+1. Conecta tu repositorio a Railway.
+2. Railway detectará el `Dockerfile` automáticamente.
+3. Agrega un servicio de **PostgreSQL** dentro de Railway.
+4. En las **Variables** del servicio Backend, configura:
+   - `DATABASE_URL`: (Variable interna de Railway hacia Postgres)
+   - `SECRET_KEY`: (Tu clave segura)
+   - `HF_TOKEN`: (Tu token de HuggingFace)
+5. **Listo**: Railway construirá y desplegará el servicio.
 
-### `POST /generate-tts`
-- **Descripción**: El endpoint principal para síntesis de voz avanzada. Permite clonar voces y configurar parámetros.
-- **Uso**: Generar audio final.
-- **Parámetros clave**: 
-  - `text`: Texto a hablar.
-  - `voice_id` o `audio_prompt`: Voz a clonar/usar.
-  - `language`: Idioma del texto (opcional).
-  - `temperature`, `speed`: Ajustes de la generación.
-  - `ambience_id`: Id de sonido de fondo (ej: 'rain', 'office').
+#### Opción B: VPS / Servidor Docker (Generic)
+Para desplegar en cualquier servidor Linux con Docker:
 
-### `POST /voices/upload`
-- **Descripción**: Sube y guarda una nueva muestra de voz clonada.
-- **Uso**: Guardar voces favoritas para usarlas después por su ID.
-- **Parámetros**: `name` (ID de la voz), `file` (archivo .wav).
+1. **Construir la Imagen**:
+   ```bash
+   docker build -t voice-backend .
+   ```
 
-### `GET /voices`
-- **Descripción**: Lista todas las voces disponibles guardadas en el sistema.
-- **Uso**: Obtener IDs de voces para usar en `/generate-tts`.
+2. **Ejecutar Contenedor**:
+   ```bash
+   docker run -d \
+     -p 8000:8000 \
+     -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
+     -e SECRET_KEY="prod_secret" \
+     --name voice-service \
+     voice-backend
+   ```
+   *(Asegúrate de que el contenedor tenga acceso a la red de tu Base de Datos).*
 
-### `GET /history`
-- **Descripción**: Devuelve el historial de audios generados recientemente.
-- **Uso**: Revisar generaciones pasadas.
 
-### `GET /download/{filename}`
-- **Descripción**: Descarga el archivo de audio (.wav) generado.
-- **Uso**: Recuperar el archivo de audio resultante de una generación.
+
+## 5. Documentación de API
+La documentación detallada de endpoints, payloads y respuestas se encuentra en la carpeta `docs/`.
+
+- [Referencia de API (Endpoints & Payloads)](docs/API_REFERENCE.md)
+
+También puedes ver la documentación interactiva (Swagger UI) al iniciar el servidor en:
+- `http://localhost:8000/docs`

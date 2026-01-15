@@ -45,3 +45,5 @@ history.json
 temp_*
 *.tmp
 *.log
+
+.pdm-python

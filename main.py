@@ -217,12 +217,16 @@ def download_default_ambience():
     # Note: Pixabay requires specific headers/auth often, so these are illustrative placeholders 
     # that would need valid direct raw URLs in a real prod env.
     
-    # Using robust URLs
+    # Using robust URLs (High Quality Samples from SoundJay & Pixabay - Royalty Free)
     reliable_sources = {
         "rain": "https://www.soundjay.com/nature/sounds/rain-03.mp3",
-        "birds": "https://www.soundjay.com/nature/sounds/canary-singing-01.mp3",
+        "birds": "https://www.soundjay.com/nature/sounds/canary-singing-01.mp3", 
         "storm": "https://www.soundjay.com/nature/sounds/thunder-01.mp3",
-        "office": "https://www.soundjay.com/misc/sounds/busy-office-ambience-1.mp3"
+        "office": "https://www.soundjay.com/misc/sounds/busy-office-ambience-1.mp3",
+        "forest": "https://www.soundjay.com/nature/sounds/forest-ambience-1.mp3", 
+        "wind": "https://www.soundjay.com/nature/sounds/wind-howl-01.mp3",
+        "cafe": "https://www.soundjay.com/misc/sounds/restaurant-1.mp3",
+        "lofi": "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" # Short chill loop
     }
 
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -234,32 +238,35 @@ def download_default_ambience():
                 print(f"  - Downloading ambience: {name}...")
                 response = requests.get(url, timeout=15, headers=headers)
                 if response.status_code == 200:
-                    temp = amb_path / f"temp_{name}.ogg"
+                    temp = amb_path / f"temp_{name}.mp3"
                     with open(temp, "wb") as f:
                         f.write(response.content)
-                    w, sr = ta.load(str(temp))
-                    ta.save(str(fname), w, sr)
-                    os.remove(temp)
-                    print(f"    ✓ Ambient sound ready: {name}")
+                    
+                    # Robust load using torchaudio (handles mp3 if ffmpeg is present)
+                    try:
+                        w, sr = ta.load(str(temp))
+                        ta.save(str(fname), w, sr)
+                        print(f"    ✓ Ambient sound ready: {name}")
+                    except Exception as load_err:
+                        print(f"    ⚠️ Downloaded but failed to decode {name}: {load_err}")
+                    finally:
+                        if os.path.exists(temp):
+                            os.remove(temp)
                 else:
-                    raise Exception(f"HTTP {response.status_code}")
+                    print(f"    ⚠️ URL failed for {name} (HTTP {response.status_code})")
             except Exception as e:
-                print(f"    ✗ Fallback: Generating noise for {name} ({e})")
-                # Generate a colored noise as fallback
+                print(f"    ✗ Download failed for {name}: {e}")
+                
+            # If still missing, generate simple fallback
+            if not fname.exists():
+                print(f"    generating fallback noise for {name}")
                 dur = 10
                 sr = 24000
-                noise = torch.randn(1, dur * sr)
-                if name == "birds":
-                    # Soft chirps simulation or just silence is better than white noise
-                    noise = noise * 0.05 
-                elif name == "office":
-                    # Mid range hum
-                    noise = noise * 0.1
-                else:
-                    noise = noise * 0.05
-                ta.save(str(fname), noise.real if torch.is_complex(noise) else noise, sr)
+                noise = torch.randn(1, dur * sr) * 0.05
+                ta.save(str(fname), noise, sr)
 
-# download_default_ambience()
+# Execute on startup
+download_default_ambience()
 
 # Enable CORS for the frontend
 app.add_middleware(
@@ -284,8 +291,89 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
 models = {"turbo": None, "multilingual": None, "original": None}
 audiogen_model = None
 
+# --- LLM TEXT GENERATION (Qwen 2.5 3B) ---
+llm_model = None
+llm_tokenizer = None
+LLM_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
+
+def get_llm():
+    global llm_model, llm_tokenizer
+    if llm_model is None:
+        try:
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+            print(f"🧠 Loading LLM: {LLM_MODEL_ID}...")
+            # Use MPS (Mac) or CUDA if available
+            device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
+            
+            # Load Tokenizer
+            llm_tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_ID)
+            
+            # Load Model (Optimized for inference)
+            llm_model = AutoModelForCausalLM.from_pretrained(
+                LLM_MODEL_ID, 
+                torch_dtype=torch.float16, # Use fp16 for speed/memory on MPS
+                device_map=device
+            )
+            print(f"✅ LLM loaded on {device}!")
+        except Exception as e:
+            print(f"❌ Failed to load LLM: {e}")
+            return None, None
+            
+    return llm_model, llm_tokenizer
+
+@app.post("/chat")
+async def chat_generation(
+    prompt: str = Form(...),
+    system_prompt: str = Form("You are a helpful assistant."),
+    max_tokens: int = Form(200),
+    temperature: float = Form(0.7),
+    username: str = Depends(authenticate)
+):
+    """
+    Generates text using the local lightweight LLM (3B).
+    Useful for creating content to be spoken by the TTS.
+    """
+    model, tokenizer = get_llm()
+    if not model:
+        raise HTTPException(status_code=500, detail="LLM model could not be loaded.")
+        
+    try:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+        
+        # Format input using chat template
+        text_input = tokenizer.apply_chat_template(
+            messages, 
+            tokenize=False, 
+            add_generation_prompt=True
+        )
+        
+        model_inputs = tokenizer([text_input], return_tensors="pt").to(model.device)
+        
+        generated_ids = model.generate(
+            model_inputs.input_ids,
+            max_new_tokens=max_tokens,
+            temperature=temperature,
+            do_sample=True,
+            top_p=0.9
+        )
+        
+        generated_ids = [
+            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+        
+        response_text = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        
+        return {"response": response_text, "model": LLM_MODEL_ID}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM generation failed: {str(e)}")
+
 def get_audiogen():
     global audiogen_model
+
     if AudioGen is None:
         return None
     if audiogen_model is None:
@@ -371,144 +459,8 @@ def generate_brown_noise(duration_sec=30, sr=24000):
     # Normalize
     brown = brown / torch.max(torch.abs(brown))
     # Save
-    path = os.path.join(AMBIENCE_DIR, "static_noise.wav")
-    if not os.path.exists(path):
-        ta.save(path, brown.unsqueeze(0), sr)
-        print(f"✅ Generated sample ambience: {path}")
-
-# generate_brown_noise() # Disabled
-
-def mix_ambience(voice_wav, ambience_id, sr, ambience_prompt=None, min_duration=0.0):
-    """Mixes voice tensor with an ambience file or a custom prompt."""
-    if not ambience_id and not ambience_prompt:
-        return voice_wav
-        
-    print(f"DEBUG: mix_ambience called with id={ambience_id}, prompt={ambience_prompt}, sr={sr}")
-    
-    # Define actual path
-    if ambience_id == "custom" and ambience_prompt:
-        import hashlib
-        prompt_hash = hashlib.md5(ambience_prompt.encode()).hexdigest()
-        amb_path = os.path.join(AMBIENCE_DIR, f"custom_{prompt_hash}.wav")
-        prompt = ambience_prompt
-    elif ambience_id:
-        amb_path = os.path.join(AMBIENCE_DIR, f"{ambience_id}.wav")
-        # Map IDs to high quality prompts
-        prompts = {
-            "birds": "vibrant birds singing in a lush tropical forest with distant wind and leaves rustling, high quality, organic",
-            "forest": "deep forest ambience with wind through old trees, distant owls, and cracking branches, cinematic",
-            "beach": "calm ocean waves crashing on a sandy beach with distant seagulls and soft wind breeze, high quality",
-            "rain": "textured heavy rain falling on a metal roof with soft distant thunder rolling, spatial",
-            "storm": "intense thunderstorm with heavy rain, wind whistling, and powerful thunder cracks nearby",
-            "office": "busy professional office background with keyboard typing, soft hum of AC, and distant corporate chatter",
-            "cafe": "cozy european cafe atmosphere with the sound of ceramic cups, soft jazz in background, and muffled conversations",
-            "lofi": "chill lofi hip hop beat with vinyl crackle for focus and study",
-            "static": "smooth pink noise constant hum for focus",
-            "ags": "premium high-tech cinematic drone with soft digital pulses, clean room air suction, and futuristic laboratory hum, 8k audio"
-        }
-        prompt = prompts.get(ambience_id, f"{ambience_id} background sound, high quality")
-    else:
-        return voice_wav
-
-    try:
-        # Load or Generate Ambience
-        if not os.path.exists(amb_path) or os.path.getsize(amb_path) < 1000:
-            model = get_audiogen()
-            if model:
-                print(f"🪄 [AudioGen] Generating Ambience for: '{prompt}'")
-                model.set_generation_params(duration=10)
-                gen_wav = model.generate([prompt], progress=False)
-                amb_wav = gen_wav[0].cpu()
-                amb_sr = 32000
-                ta.save(amb_path, amb_wav, amb_sr)
-                print(f"💾 Cached new ambience: {amb_path}")
-            else:
-                return voice_wav
-        else:
-            amb_wav, amb_sr = ta.load(amb_path)
-
-        amb_wav = amb_wav.detach().cpu()
-        
-        # 3. Resample
-        if amb_sr != sr:
-            resampler = ta.transforms.Resample(amb_sr, sr)
-            amb_wav = resampler(amb_wav)
-            
-        # 4. Mono/Stereo Check & Normalization
-        if voice_wav.shape[0] == 1 and amb_wav.shape[0] > 1:
-            amb_wav = torch.mean(amb_wav, dim=0, keepdim=True)
-            
-        # NORMALIZE BOTH TO 1.0 (0dB) BEFORE MIXING
-        v_max = torch.max(torch.abs(voice_wav))
-        if v_max > 0:
-            voice_wav = voice_wav / v_max
-            
-        a_max = torch.max(torch.abs(amb_wav))
-        if a_max > 0:
-            amb_wav = amb_wav / a_max
-            
-        print(f"DEBUG: Normalized voice (max={v_max:.2f}) and ambience (max={a_max:.2f})")
-        
-        # 5. Handle Min Duration (Padding)
-        voice_len = voice_wav.shape[1]
-        amb_len = amb_wav.shape[1]
-        
-        # Calculate samples needed for min_duration
-        if min_duration > 0:
-            min_samples = int(min_duration * sr)
-            if voice_len < min_samples:
-                # Pad voice with silence at the end
-                pad_size = min_samples - voice_len
-                print(f"DEBUG: Padding voice with {pad_size} samples to reach {min_duration}s")
-                pad = torch.zeros((1, pad_size))
-                voice_wav = torch.cat([voice_wav, pad], dim=1)
-                voice_len = voice_wav.shape[1]
-
-        # 6. Loop or cut ambience to match voice length
-        if amb_len < voice_len:
-            # Loop ambience
-            repeats = (voice_len // amb_len) + 1
-            amb_wav = amb_wav.repeat(1, repeats)
-            amb_wav = amb_wav[:, :voice_len]
-        else:
-            amb_wav = amb_wav[:, :voice_len]
-            
-        # 7. Mix with less volume for ambience
-        mixed = voice_wav + (amb_wav * 0.15)
-            
-        # 5. Loop/Repeat or Seek Random Ambience
-        voice_len = voice_wav.shape[1]
-        amb_len = amb_wav.shape[1]
-        
-        import random
-        if amb_len > voice_len:
-            start_idx = random.randint(0, amb_len - voice_len)
-            amb_wav = amb_wav[:, start_idx : start_idx + voice_len]
-        else:
-            repeats = (voice_len // amb_len) + 1
-            amb_wav = amb_wav.repeat(1, repeats)
-            amb_wav = amb_wav[:, :voice_len]
-        
-        print(f"DEBUG: amb_wav shape after processing: {amb_wav.shape}")
-
-        # 7. Mix
-        # Reduced ambience (0.25) to prevent overpowering the voice
-        mixed = (voice_wav * 1.0) + (amb_wav * 0.25)
-        
-        # 8. Normalize result
-        max_val = torch.max(torch.abs(mixed))
-        if max_val > 0.01: # Avoid division by zero
-            mixed = mixed / max_val
-            
-        return mixed
-
-    except Exception as e:
-        print(f"❌ Error mixing ambience: {e}")
-        import traceback
-        traceback.print_exc()
-        # Return original audio if mixing fails
-        return voice_wav
-
+    # Removed brown noise generator
+    pass
 def process_text_tags(text, current_params, mode="turbo"):
     """
     Parses tags and identifies context.
@@ -526,10 +478,13 @@ def process_text_tags(text, current_params, mode="turbo"):
         "cafe": ["cafe", "cafeteria", "barista", "restaurant", "coffe"],
         "office": ["oficina", "trabajo", "tecleando", "office", "typing", "work"],
         "lofi": ["estudiar", "relajo", "musica suave", "lofi", "study", "relax"],
+        "storm": ["tormenta", "truenos", "relampagos", "storm", "thunder", "lightning"],
+        "wind": ["viento", "brisa", "wind", "breeze"],
+        "static": ["estatica", "ruido", "static", "noise"],
     }
     
     for amb_id, keywords in context_keywords.items():
-        if any(re.search(r'\b' + kw + r'\b', text, re.IGNORECASE) for kw in keywords):
+        if amb_id in VALID_AMBIENCES and any(re.search(r'\b' + kw + r'\b', text, re.IGNORECASE) for kw in keywords):
             auto_ambience = amb_id
             break
 
@@ -714,43 +669,65 @@ async def generate_tts(
         seg_amb_prompt = active_ambience_prompt
         seg_min_duration = 0.0
 
+        # Logic upgrade:
+        # [tag] text [tag] text -> segments
+        # 1. Split creates: "", tag, "", text, tag, "", text...
+        # We iterate and update 'current_state' whenever we hit a tag.
+        
         i = 0
         while i < len(parts):
-            chunk = parts[i]
-            if chunk is None: chunk = ""
+            # parts structure from re.split with groups:
+            # [text_chunk, group1(custom), group2(predefined), text_chunk, ...]
             
-            # If it's the text between tags
-            if i % 3 == 0:
-                if chunk.strip():
-                    segments.append({
-                        "text": chunk.strip(),
-                        "amb_id": seg_amb_id,
-                        "amb_prompt": seg_amb_prompt,
-                        "min_duration": seg_min_duration
-                    })
-                    seg_min_duration = 0.0 
-            # If it's a tag (group 1 or group 2)
-            else:
-                val = chunk
+            chunk = parts[i] # This is always a text chunk
+            if chunk and chunk.strip():
+                segments.append({
+                    "text": chunk.strip(),
+                    "amb_id": seg_amb_id,
+                    "amb_prompt": seg_amb_prompt,
+                    "min_duration": seg_min_duration
+                })
+                seg_min_duration = 0.0 # reset duration request after applied
+            
+            # Check for next tag (if exists)
+            if i + 1 < len(parts):
+                tag_custom = parts[i+1] # [ambience:...]
+                tag_predef = parts[i+2] # [rain]
+                
+                val = tag_custom if tag_custom else tag_predef
+                
                 if val:
-                    # Update state for next text chunks
-                    # Check for duration suffix ":10s"
+                    # Parse duration suffix if present
                     duration_match = re.search(r":(\d+)s$", val)
                     new_duration = 0.0
                     if duration_match:
                         new_duration = float(duration_match.group(1))
-                        # Remove duration from value string
                         val = val[:duration_match.start()]
-                        
+                    
                     seg_min_duration = new_duration
                     
-                    if i % 3 == 1: # [ambience:...] (Group 1)
-                        seg_amb_id = "custom"
-                        seg_amb_prompt = val
-                    else: # [predefined] (Group 2)
-                        seg_amb_id = val
+                    # Logic: If we encounter the SAME tag again, it acts as a "Stop/Toggle"? 
+                    # User request: "[rain] hola [rain]" -> rain only inside.
+                    # Or "[rain] hola" -> rain until end.
+                    
+                    # Simple state machine:
+                    # Any tag sets the current ambience.
+                    # If we hit the SAME tag that is currently active, we assume it's a "closing" tag -> set ambience to None
+                    # If we hit a DIFFERENT tag, we switch to that ambience.
+                    
+                    current_active_id = seg_amb_id
+                    new_id = val
+                    
+                    if new_id == current_active_id:
+                        # Toggle OFF
+                        seg_amb_id = None
                         seg_amb_prompt = None
-            i += 1
+                    else:
+                        # Toggle ON / SWITCH
+                        seg_amb_id = val
+                        seg_amb_prompt = None if tag_predef else val
+            
+            i += 3 # Jump text+g1+g2
 
         # Fallback if no tags were found or split didn't result in segments
         if not segments:

@@ -1,0 +1,31 @@
+[project]
+name = "voice-backend"
+version = "0.1.0"
+description = "API de síntesis y clonación de voz usando ResembleAI/chatterbox-turbo"
+authors = [
+    {name = "Agus", email = "agus@example.com"}
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "python-dotenv",
+    "requests",
+    "huggingface_hub",
+    "chatterbox-tts>=0.1.6",
+    "torch",
+    "torchaudio",
+    "numpy<2.0",
+    "accelerate",
+    "scipy",
+]
+requires-python = ">=3.11, <3.12"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tool.pdm]
+distribution = false
+
+[tool.pdm.scripts]
+dev = { cmd = "uvicorn main:app --reload --host 0.0.0.0 --port 8000", env = { ENVIRONMENT = "development" } }
+start = { cmd = "python main.py", env = { ENVIRONMENT = "production" } }

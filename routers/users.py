@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.orm import Session
 from database import get_db, User
-from dependencies import get_current_user, create_access_token, get_password_hash, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES
+from dependencies import get_current_user, create_access_token, create_refresh_token, get_password_hash, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 
@@ -10,9 +10,16 @@ router = APIRouter()
 
 # --- AUTH ---
 
+from sqlalchemy import func
+
 @router.post("/auth/token") 
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
+    login_id_lower = form_data.username.lower()
+    # Find by username (case-insensitive) OR email (lowercase)
+    user = db.query(User).filter(
+        (func.lower(User.username) == login_id_lower) | (User.email == login_id_lower)
+    ).first()
+    
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -23,22 +30,51 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = create_access_token(
         data={"sub": user.username, "user_id": user.id}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
+    refresh_token = create_refresh_token(data={"sub": user.username})
+    
+    return {
+        "access_token": access_token, 
+        "refresh_token": refresh_token,
+        "token_type": "bearer", 
+        "user_id": user.id
+    }
 
 @router.post("/auth/signup")
-def create_user_signup(username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    if db.query(User).filter(User.username == username).first():
-        raise HTTPException(status_code=400, detail="Username already registered")
+def create_user_signup(
+    username: str = Form(...), 
+    email: str = Form(...), 
+    password: str = Form(...), 
+    db: Session = Depends(get_db)
+):
+    username_display = username # Preserve casing as written
+    email_lower = email.lower() # Email always lowercase
+    
+    # Uniqueness check (Case-insensitive for username, lowercase for email)
+    existing = db.query(User).filter(
+        (func.lower(User.username) == username_display.lower()) | 
+        (User.email == email_lower)
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Username or email already registered")
     
     hashed = get_password_hash(password)
-    user = User(username=username, hashed_password=hashed)
+    user = User(username=username_display, email=email_lower, hashed_password=hashed)
     db.add(user)
     db.commit()
     
-    access_token = create_access_token(data={"sub": user.username, "user_id": user.id})
-    return {"id": user.id, "username": user.username, "access_token": access_token, "token_type": "bearer"}
+    return {
+        "id": user.id, 
+        "username": user.username, 
+        "email": user.email,
+        "status": "user created successfully"
+    }
 
 # --- USER CRUD ---
+
+@router.get("/users/me")
+def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
 @router.get("/users/{user_id}")
 def read_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

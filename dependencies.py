@@ -3,34 +3,60 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import get_db, User
-from passlib.context import CryptContext
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
+import hashlib
+import bcrypt
 import os
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from jose import JWTError, jwt
 
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_key_change_me_in_prod")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 300
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Removed passlib context
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    """
+    Verifies a password against a BCrypt hash.
+    Handles string/byte conversion automatically.
+    """
+    password_byte_enc = plain_password.encode('utf-8')
+    
+    # DB usually returns str, bcrypt needs bytes
+    if isinstance(hashed_password, str):
+        hashed_password = hashed_password.encode('utf-8')
+        
+    return bcrypt.checkpw(password_byte_enc, hashed_password)
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    """
+    Hashes a password using BCrypt with automatic salt.
+    Returns string for database storage.
+    """
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def create_refresh_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 

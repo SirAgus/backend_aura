@@ -42,6 +42,10 @@ VOICES_DIR=voices
 
 # Modelos IA
 HF_TOKEN=tu_token_de_huggingface # Opcional, para descarga rápida
+
+# Seguridad Avanzada (Opcional)
+ALLOWED_HOSTS="*" # Lista separada por comas, ej: "api.midominio.com,localhost"
+
 ```
 
 ## 4. Iniciar el Proyecto y Despliegue

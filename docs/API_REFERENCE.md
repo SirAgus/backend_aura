@@ -8,17 +8,18 @@ Esta documentación detalla los endpoints disponibles, los payloads requeridos y
 ## 🔐 Autenticación
 
 ### Login
-Genera un token de acceso JWT.
+Genera un token de acceso JWT. Acepta **Username** o **Email** en el campo `username`.
 
 - **Endpoint**: `POST /auth/token`
 - **Content-Type**: `application/x-www-form-urlencoded`
 - **Payload**:
-  - `username`: string
+  - `username`: string (Nombre de usuario o Email)
   - `password`: string
 - **Respuesta (200 OK)**:
   ```json
   {
     "access_token": "eyJhbGciOiJIUzI1Ni...",
+    "refresh_token": "dGhpcy1pcy1hLXJlZnJlc2g...",
     "token_type": "bearer",
     "user_id": 1
   }
@@ -30,14 +31,15 @@ Crea un nuevo usuario y devuelve el token de sesión inmediatamente.
 - **Endpoint**: `POST /auth/signup`
 - **Form Data**:
   - `username`: string
+  - `email`: string
   - `password`: string
 - **Respuesta (200 OK)**:
   ```json
   {
     "id": 2,
     "username": "nuevo_user",
-    "access_token": "...",
-    "token_type": "bearer"
+    "email": "user@gmail.com",
+    "status": "user created successfully"
   }
   ```
 
@@ -100,7 +102,20 @@ Genera texto con el modelo local Qwen 2.5 3B.
 
 ## 👥 Usuarios
 
-### Obtener Perfil
+### Obtener Usuario Actual (Me)
+Devuelve los datos del usuario autenticado.
+- **Endpoint**: `GET /users/me`
+- **Auth**: Requerida.
+- **Respuesta**:
+  ```json
+  {
+    "id": 1,
+    "username": "admin",
+    "created_at": "2024-01-01T12:00:00"
+  }
+  ```
+
+### Obtener Perfil (Por ID)
 - **Endpoint**: `GET /users/{user_id}`
 - **Respuesta**: `{ "id": 1, "username": "admin", "created_at": "..." }`
 

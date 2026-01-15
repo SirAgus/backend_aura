@@ -11,6 +11,17 @@ load_dotenv()
 
 app = FastAPI(title="Voice Backend API", version="2.0")
 
+# Firewall / Trusted Host
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
+allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "*")
+allowed_hosts_list = [h.strip() for h in allowed_hosts_env.split(",")]
+
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=allowed_hosts_list
+)
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +38,22 @@ def on_startup():
     try:
         init_db()
         print("✅ Database initialized (Tables created)")
+        
+        # Create default admin if not exists
+        from database import SessionLocal, User
+        from dependencies import get_password_hash
+        
+        db = SessionLocal()
+        admin = db.query(User).filter(User.id == 1).first()
+        if not admin:
+            print("👤 Creating default admin user...")
+            hashed_pwd = get_password_hash("upfint2001")
+            admin_user = User(id=1, username="admin", hashed_password=hashed_pwd)
+            db.add(admin_user)
+            db.commit()
+            print("✅ Default admin created (admin / upfint2001)")
+        db.close()
+        
     except Exception as e:
         print(f"❌ Database init failed: {e}")
         

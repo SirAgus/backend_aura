@@ -5,7 +5,7 @@
 groups = ["default"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:85ed9997f99bfb8fcaf0ecacf9de56aac2775258fcb987cc2c9697fd7387735b"
+content_hash = "sha256:bf0fe3cbca0faae4a4a78de888a292e56e80ed54201f205e02063d269aafef67"
 
 [[metadata.targets]]
 requires_python = ">=3.11,<3.12"
@@ -1248,31 +1248,6 @@ files = [
     {file = "pandas-2.3.3-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:db4301b2d1f926ae677a751eb2bd0e8c5f5319c9cb3f88b0becbbb0b07b34151"},
     {file = "pandas-2.3.3-cp311-cp311-win_amd64.whl", hash = "sha256:f086f6fe114e19d92014a1966f43a3e62285109afe874f067f5abbdcbb10e59c"},
     {file = "pandas-2.3.3.tar.gz", hash = "sha256:e05e1af93b977f7eafa636d043f9f94c7ee3ac81af99c13508215942e64c993b"},
-]
-
-[[package]]
-name = "passlib"
-version = "1.7.4"
-summary = "comprehensive password hashing framework supporting over 30 schemes"
-groups = ["default"]
-files = [
-    {file = "passlib-1.7.4-py2.py3-none-any.whl", hash = "sha256:aa6bca462b8d8bda89c70b382f0c298a20b5560af6cbfa2dce410c0a2fb669f1"},
-    {file = "passlib-1.7.4.tar.gz", hash = "sha256:defd50f72b65c5402ab2c573830a6978e5f202ad0d984793c8dde2c4152ebe04"},
-]
-
-[[package]]
-name = "passlib"
-version = "1.7.4"
-extras = ["bcrypt"]
-summary = "comprehensive password hashing framework supporting over 30 schemes"
-groups = ["default"]
-dependencies = [
-    "bcrypt>=3.1.0",
-    "passlib==1.7.4",
-]
-files = [
-    {file = "passlib-1.7.4-py2.py3-none-any.whl", hash = "sha256:aa6bca462b8d8bda89c70b382f0c298a20b5560af6cbfa2dce410c0a2fb669f1"},
-    {file = "passlib-1.7.4.tar.gz", hash = "sha256:defd50f72b65c5402ab2c573830a6978e5f202ad0d984793c8dde2c4152ebe04"},
 ]
 
 [[package]]

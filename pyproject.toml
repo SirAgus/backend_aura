@@ -20,7 +20,7 @@ dependencies = [
     "scipy",
     "sqlalchemy",
     "psycopg2-binary",
-    "passlib[bcrypt]",
+    "bcrypt",
     "python-jose[cryptography]",
 ]
 requires-python = ">=3.11, <3.12"

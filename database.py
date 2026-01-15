@@ -22,9 +22,11 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    role = Column(String, default="usuario")
+    default_voice_id = Column(String, ForeignKey("voices.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    voices = relationship("Voice", back_populates="owner")
+    voices = relationship("Voice", back_populates="owner", foreign_keys="Voice.owner_id")
     audios = relationship("Audio", back_populates="user")
     threads = relationship("Thread", back_populates="user")
 
@@ -40,9 +42,11 @@ class Voice(Base):
     filename = Column(String)
     language = Column(String, default="en")
     region = Column(String, nullable=True)
+    gender = Column(String, nullable=True) # Addition
+    description = Column(String, nullable=True) # Addition
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    owner = relationship("User", back_populates="voices")
+    owner = relationship("User", back_populates="voices", foreign_keys=[owner_id])
 
 class Audio(Base):
     """

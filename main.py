@@ -42,15 +42,22 @@ def on_startup():
         # Create default admin if not exists
         from database import SessionLocal, User
         from dependencies import get_password_hash
+        from sqlalchemy import text
         
         db = SessionLocal()
-        admin = db.query(User).filter(User.id == 1).first()
+        admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
             print("👤 Creating default admin user...")
             hashed_pwd = get_password_hash("upfint2001")
-            admin_user = User(id=1, username="admin", hashed_password=hashed_pwd)
+            admin_user = User(id=1, username="admin", email="admin@aura.ai", hashed_password=hashed_pwd, role="admin")
             db.add(admin_user)
             db.commit()
+            # PostgreSQL sequence sync: ensures the next registered user doesn't conflict with ID 1
+            try:
+                db.execute(text("SELECT setval('users_id_seq', (SELECT MAX(id) FROM users))"))
+                db.commit()
+            except:
+                pass # Non-postgres DBs might not need/support this
             print("✅ Default admin created (admin / upfint2001)")
         db.close()
         

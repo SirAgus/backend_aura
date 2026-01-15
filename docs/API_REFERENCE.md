@@ -142,7 +142,7 @@ Devuelve los datos del usuario autenticado.
 - **Respuesta**: `[ { "id": 5, "title": "..." }, ... ]`
 
 ### Modificar/Borrar Hilo
-- `PUT /threads/{id}` (param: `title`)
+- `PATCH /threads/{id}` (param: `title`)
 - `DELETE /threads/{id}`
 
 ---
@@ -163,3 +163,36 @@ Guarda un mensaje en un hilo.
 ### Leer Mensajes de un Hilo
 - **Endpoint**: `GET /threads/{thread_id}/messages`
 - **Respuesta**: Lista de objetos mensaje ordenados por fecha.
+### User Discovery
+
+**Endpoint:** `GET /voices`
+**Auth:** ✅ Bearer Token
+**Response:**
+```json
+{
+  "voices": [
+    {
+      "name": "agus",
+      "language": "es",
+      "region": "CL",
+      "gender": "male",
+      "description": "Voz personalizada de Agus"
+    }
+  ]
+}
+```
+
+**Endpoint:** `GET /history`
+**Auth:** ✅ Bearer Token
+**Response:** Lista de audios generados por el usuario.
+```json
+[
+  {
+    "id": "uuid",
+    "filename": "gen_uuid.wav",
+    "content": "Texto generado",
+    "voice_used": "agus",
+    "created_at": "..."
+  }
+]
+```

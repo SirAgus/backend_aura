@@ -27,7 +27,7 @@ services:
       - TORCH_DEVICE=cpu
     depends_on:
       - db
-    command: pdm run start
+    # command: python main.py (Default from Dockerfile)
 
 volumes:
   postgres_data:

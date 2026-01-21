@@ -14,17 +14,14 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PDM
-RUN pip install -U pip setuptools wheel
-RUN pip install pdm
+# Copy requirements
+COPY requirements.txt .
 
+# Install dependencies directly with pip (system-wide)
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Set working directory
 WORKDIR /app
-
-# Copy configuration files
-COPY pyproject.toml pdm.lock README.md ./
-
-# Install dependencies
-RUN pdm install --prod --no-lock --no-editable
 
 # Copy application code
 COPY . .
@@ -33,4 +30,4 @@ COPY . .
 EXPOSE 8000
 
 # Start command
-CMD ["pdm", "run", "start"]
+CMD ["python", "main.py"]

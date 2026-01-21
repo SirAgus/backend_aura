@@ -5,20 +5,28 @@ from sqlalchemy.orm import Session
 from database import get_db, Thread, Message
 from dependencies import get_current_user
 from pydantic import BaseModel
-import mlx_lm
-import threading
-import queue
-import json
-import whisper
-import tempfile
-import shutil
-import os
-import re
-import urllib.parse
-import base64
-from routers.voice import get_edge_audio_stream
 
-router = APIRouter()
+# ... existing imports ...
+import sys
+import platform
+
+# --- LLM BACKEND SELECTION ---
+USE_MLX = False
+try:
+    if sys.platform == "darwin" and platform.machine() == "arm64":
+        import mlx_lm
+        from mlx_lm.sample_utils import make_sampler
+        USE_MLX = True
+        print("🍏 Detectado Chip Apple Silicon: Usando Backend MLX")
+    else:
+        raise ImportError("No es Apple Silicon")
+except ImportError:
+    print("🐧 Detectado Linux/Intel/CPU: Usando Backend Transformers (CPU/CUDA)")
+    # Fallback libraries
+    from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+    import torch
+
+# ... rest of the file ...
 
 # --- MODELS CACHE ---
 WHISPER_MODEL = None
@@ -30,21 +38,45 @@ def get_whisper():
         WHISPER_MODEL = whisper.load_model("base")
     return WHISPER_MODEL
 
-# --- LLM SERVICE (MLX) ---
+# --- LLM SERVICE VARIABLE ---
 llm_model = None
 llm_tokenizer = None
-LLM_MODEL_ID = "mlx-community/Qwen2.5-3B-Instruct-4bit"
+LLM_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct" # Modelo en HuggingFace Hub
 
 def get_llm():
     global llm_model, llm_tokenizer
-    if llm_model is None:
+    
+    if llm_model is not None:
+        return llm_model, llm_tokenizer
+
+    if USE_MLX:
+        # Lógica original MLX
         try:
-            print(f"🚀 Cargando LLM TURBO (MLX): {LLM_MODEL_ID}...")
-            llm_model, llm_tokenizer = mlx_lm.load(LLM_MODEL_ID)
+            mlx_id = "mlx-community/Qwen2.5-3B-Instruct-4bit"
+            print(f"🚀 Cargando LLM TURBO (MLX): {mlx_id}...")
+            llm_model, llm_tokenizer = mlx_lm.load(mlx_id)
             print(f"✅ LLM optimizado para Mac cargado exitosamente!")
         except Exception as e:
             print(f"❌ Error al cargar MLX: {e}")
             return None, None
+    else:
+        # Lógica Fallback Transformers (Linux/CPU)
+        try:
+            print(f"⚙️ Cargando LLM Standard (Transformers CPU): {LLM_MODEL_ID}...")
+            # Usar bfloat16 si la CPU lo soporta, sino float32
+            dtype = torch.float32 
+            
+            llm_tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_ID)
+            llm_model = AutoModelForCausalLM.from_pretrained(
+                LLM_MODEL_ID, 
+                torch_dtype=dtype,
+                device_map="auto" # "cpu" en este caso
+            )
+            print(f"✅ LLM Transformers (CPU) cargado exitosamente!")
+        except Exception as e:
+            print(f"❌ Error al cargar Transformers: {e}")
+            return None, None
+            
     return llm_model, llm_tokenizer
 
 @router.post("/chat")
@@ -78,18 +110,43 @@ async def chat_generation(
     for h in history:
         messages.append({"role": h.role, "content": h.content})
     
+    # Generador unificado
     async def stream_generator():
-        from mlx_lm.sample_utils import make_sampler
-        sampler = make_sampler(temp=temperature)
+        full_response = ""
+        current_buffer = ""
+        word_count = 0
+        prompt_formatted = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+
+        token_iterator = []
         
-        try:
-            prompt_formatted = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            full_response = ""
-            current_buffer = ""
-            word_count = 0
+        if USE_MLX:
+            # Generador MLX
+            sampler = make_sampler(temp=temperature)
+            token_iterator = (resp.text for resp in mlx_lm.stream_generate(model, tokenizer, prompt=prompt_formatted, max_tokens=max_tokens, sampler=sampler))
+        else:
+            # Generador Transformers
+            inputs = tokenizer(prompt_formatted, return_tensors="pt").to(model.device)
+            streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, timeout=None)
             
-            for response in mlx_lm.stream_generate(model, tokenizer, prompt=prompt_formatted, max_tokens=max_tokens, sampler=sampler):
-                token_text = response.text
+            generation_kwargs = dict(
+                inputs, 
+                streamer=streamer, 
+                max_new_tokens=max_tokens, 
+                do_sample=True, 
+                temperature=temperature
+            )
+            
+            # Correr generación en un thread separado para no bloquear el loop async de FastAPI
+            thread = threading.Thread(target=model.generate, kwargs=generation_kwargs)
+            thread.start()
+            
+            token_iterator = streamer
+
+        try:
+            for token_text in token_iterator:
+                # Normalización de tokens (MLX a veces manda objetos, Transformers manda texto limpio)
+                # En este iterador ya se extrajo .text para MLX arriba
+                
                 full_response += token_text
                 current_buffer += token_text
                 yield token_text
@@ -97,91 +154,54 @@ async def chat_generation(
                 if " " in token_text:
                     word_count += 1
                 
-                if user.default_voice_id:
-                    # Lógica de Chunking mejorada:
-                    # 1. Priorizar frases completas (puntuación fuerte)
-                    # 2. Si es muy largo, permitir comas
-                    # 3. Buffer de seguridad para no cortar palabras
-                    
-                    is_strong_punctuation = bool(re.search(r'[.!?;]\s*$', token_text))
-                    is_comma = bool(re.search(r',\s*$', token_text))
-                    
-                    should_flush = False
-                    
-                if user.default_voice_id:
-                    # Lógica de Chunking Dinámico:
-                    # 1er paquete: Muy rápido (latency optimization) -> 6 palabras o coma
-                    # Resto: Calidad y entonación -> 15-25 palabras
-                    
-                    is_first_chunk = (full_response == current_buffer) # Aproximación si full_response crece
-                    # Mejor usamos una flag externa si es posible, pero aquí:
-                    # Si 'full_response' tiene longitud similar a 'current_buffer', es el inicio.
-                    # O simplemente un contador de chunks:
-                    
-                    is_strong_punctuation = bool(re.search(r'[.!?;]\s*$', token_text))
-                    is_comma = bool(re.search(r',\s*$', token_text))
-                    
-                    should_flush = False
-                    
-                    # Threshold dinámico
-                    # Si acabamos de empezar (longitud total baja), somos agresivos
-                if user.default_voice_id:
-                    # Lógica HÍBRIDA: Velocidad inicial + Calidad sostenida
-                    # Detectamos si es el "arranque" (pocos chunks enviados o buffer inicial)
-                    
-                    # Definimos patrones
-                    is_strong_punctuation = bool(re.search(r'[.!?;:]\s*$', token_text))
-                    is_comma = bool(re.search(r',\s*$', token_text))
-                    is_newline = "\n" in token_text
-                    
-                    should_flush = False
-                    
-                    # ESTRATEGIA:
-                    # Si es el principio ABSOLUTO (primeras 5-8 palabras): Cortar rápido en coma o espacio si es necesario
-                    # Para que el usuario escuche algo YA.
-                    # Luego: Solo oraciones completas.
-                    
-                    # Simplificación robusta:
-                    # Si buffer tiene > 6 palabras y hay coma -> Flush (Arranque rápido)
-                    # Si hay puntuación fuerte -> Flush siempre
-                    
+                # ... [Lógica de Chunking Igual que antes] ...
+                is_strong_punctuation = bool(re.search(r'[.!?;:]\s*$', token_text))
+                is_comma = bool(re.search(r',\s*$', token_text))
+                is_newline = "\n" in token_text
+                
+                should_flush = False
+                
+                if user.default_voice_id: # Solo procesamos lógica de voz si el usuario tiene voz
                     if is_strong_punctuation or is_newline:
                         should_flush = True
-                    elif word_count >= 50: # Timeout por longitud
+                    elif word_count >= 50:
                         should_flush = True
-                    elif word_count >= 8 and is_comma: # "Arranque rápido" en comas
+                    elif word_count >= 8 and is_comma:
                         should_flush = True
-                         
+                        
                     if should_flush:
                         clean_text = current_buffer.strip()
                         if len(clean_text) > 2: 
-                            # GENERACIÓN DE AUDIO EMBEBIDO (ZERO LATENCY NETWORK)
                             try:
-                                # Usamos la misma voz que configuramos en voice.py (Alvaro) 
-                                # O podríamos leer user preferences, pero por ahora Alvaro para consistencia
                                 audio_io = await get_edge_audio_stream(clean_text, "es-ES-AlvaroNeural")
                                 b64_audio = base64.b64encode(audio_io.getvalue()).decode('utf-8')
                                 data_url = f"data:audio/mp3;base64,{b64_audio}"
                                 yield f"||VOICE_CHUNK:{data_url}||"
                             except Exception as e:
-                                print(f"❌ Error generando audio embebido: {e}")
+                                print(f"❌ Error generando audio: {e}")
                             
                             current_buffer = ""
                             word_count = 0
             
-            # Resto de voz
+            # Resto de voz final
             if user.default_voice_id and current_buffer.strip():
-                safe_text = urllib.parse.quote(current_buffer.strip())
-                stream_url = f"/voice/stream?text={safe_text}&voice_id={user.default_voice_id}"
-                yield f"||VOICE_CHUNK:{stream_url}||"
+                try:
+                    clean_text = current_buffer.strip()
+                    audio_io = await get_edge_audio_stream(clean_text, "es-ES-AlvaroNeural")
+                    b64_audio = base64.b64encode(audio_io.getvalue()).decode('utf-8')
+                    data_url = f"data:audio/mp3;base64,{b64_audio}"
+                    yield f"||VOICE_CHUNK:{data_url}||"
+                except:
+                    pass
             
-            # 3. GUARDAR RESPUESTA DE IA (Al finalizar el stream)
+            # 3. GUARDAR RESPUESTA DE IA
             assistant_msg = Message(thread_id=target_thread_id, role="assistant", content=full_response)
             db.add(assistant_msg)
             db.commit()
                 
         except Exception as e:
-            yield f"\n[Error de generación MLX: {str(e)}]"
+            print(f"Generación Error: {e}")
+            yield f"\n[Error: {str(e)}]"
 
     return StreamingResponse(stream_generator(), media_type="text/plain")
 

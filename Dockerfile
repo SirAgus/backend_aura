@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     libavformat-dev \
     libavutil-dev \
     libswscale-dev \
-    libavresample-dev \
+    libswresample-dev \
     git \
     build-essential \
     && rm -rf /var/lib/apt/lists/*

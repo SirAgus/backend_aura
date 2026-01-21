@@ -135,19 +135,21 @@ def generate_voice_audio(db: Session, user: User, text: str, voice_id: str = Non
     clean_text = remove_text_between_brackets(text)
     
     # 2. Preparar Referencia de Voz
-    ref_wav = None
+    voice_path = None
     if voice_id:
-        voice_path = os.path.join(VOICES_DIR, f"{voice_id}.wav")
-        if os.path.exists(voice_path):
-            ref_wav, _ = ta.load(voice_path)
+        voice_record = db.query(Voice).filter(Voice.id == voice_id).first()
+        if voice_record:
+            temp_voice_path = os.path.join(VOICES_DIR, voice_record.filename)
+            if os.path.exists(temp_voice_path):
+                voice_path = temp_voice_path
     
     # 3. Generar
     try:
-        # El modelo Multilingual (MTL) suele requerir ref_wav para zero-shot cloning
-        if ref_wav is not None:
-            wav = m.generate(clean_text, temperature=temperature, ref_wav=ref_wav)
+        # Chatterbox Multilingual (MTL) usa 'audio_prompt_path' para clonación
+        if voice_path:
+            wav = m.generate(clean_text, language_id="es", temperature=temperature, audio_prompt_path=voice_path)
         else:
-            wav = m.generate(clean_text, temperature=temperature)
+            wav = m.generate(clean_text, language_id="es", temperature=temperature)
     except Exception as e:
         print(f"❌ Error en generación TTS: {e}")
         return None
@@ -187,18 +189,19 @@ def get_audio_stream(text: str, voice_id: str = None, temperature: float = 0.7):
     
     clean_text = remove_text_between_brackets(text)
     
-    ref_wav = None
+    voice_path = None
     if voice_id:
-        voice_path = os.path.join(VOICES_DIR, f"{voice_id}.wav")
-        if os.path.exists(voice_path):
-            ref_wav, _ = ta.load(voice_path)
+        voice_record = db.query(Voice).filter(Voice.id == voice_id).first()
+        if voice_record:
+            temp_voice_path = os.path.join(VOICES_DIR, voice_record.filename)
+            if os.path.exists(temp_voice_path):
+                voice_path = temp_voice_path
 
     try:
-        # Generación con modelo mtl (Multilingual)
-        # FIX FINAL: La librería parece no implementar clonación pública en generate() aun.
-        # Usamos generación estándar para asegurar funcionalidad.
-        # FIX 2: Falta 'language_id'
-        wav = m.generate(clean_text, temperature=temperature, language_id="es")
+        if voice_path:
+            wav = m.generate(clean_text, language_id="es", temperature=temperature, audio_prompt_path=voice_path)
+        else:
+            wav = m.generate(clean_text, language_id="es", temperature=temperature)
         
         # Convertir a buffer de memoria WAV
         buffer = io.BytesIO()
@@ -248,6 +251,31 @@ async def stream_voice_endpoint(
         print(f"❌ Error EdgeTTS: {e}")
         # Fallback al sistema anterior si Edge falla (internet, etc)
         # buffer = get_audio_stream(text, voice_id, temperature) ...
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demo")
+@router.post("/demo")
+async def demo_voice_endpoint(
+    text: str | None = None,
+    language: str = "es",
+    voice_id: str = "es-ES-AlvaroNeural" # Default natural voice
+):
+    # Support for text in form or query
+    if not text:
+        raise HTTPException(status_code=400, detail="Falta el parámetro 'text'")
+        
+    # Mapping simple voice_id if provided
+    if voice_id == "daniela": voice_id = "es-MX-DaliaNeural"
+    elif voice_id == "agus": voice_id = "es-CL-LorenzoNeural"
+    elif not "-" in voice_id: 
+        # Si no es un ID completo de Edge, por defecto español
+        voice_id = "es-ES-AlvaroNeural"
+
+    try:
+        buffer = await get_edge_audio_stream(text, voice_id)
+        return StreamingResponse(buffer, media_type="audio/mpeg")
+    except Exception as e:
+        print(f"❌ Error Demo TTS: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-tts")

@@ -61,6 +61,32 @@ def on_startup():
             print("✅ Default admin created (admin / upfint2001)")
         db.close()
         
+        # --- Voice Sync ---
+        from database import Voice
+        import json
+        sync_db = SessionLocal()
+        metadata_path = "voices/metadata.json"
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r") as f:
+                voices_data = json.load(f)
+                for v_id, info in voices_data.items():
+                    existing = sync_db.query(Voice).filter(Voice.id == v_id).first()
+                    if not existing:
+                        print(f"🎙️ Syncing voice: {v_id}")
+                        new_voice = Voice(
+                            id=v_id,
+                            owner_id=None,
+                            filename=info.get("filename"),
+                            language=info.get("language", "en"),
+                            region=info.get("region"),
+                            gender=info.get("gender"),
+                            description=info.get("description")
+                        )
+                        sync_db.add(new_voice)
+                sync_db.commit()
+        sync_db.close()
+        # ------------------
+        
     except Exception as e:
         print(f"❌ Database init failed: {e}")
         

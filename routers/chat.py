@@ -70,11 +70,14 @@ def get_llm():
     else:
         try:
             print(f"⚙️ Cargando LLM Standard (Transformers CPU): {LLM_MODEL_ID}...")
-            dtype = torch.float32 
+            # Usamos bfloat16 para reducir el uso de RAM de 12GB (float32) a 6GB aprox.
+            # Esto evita el error 137 (Out of Memory) en servidores de 8GB.
+            dtype = torch.bfloat16 
             llm_tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_ID)
             llm_model = AutoModelForCausalLM.from_pretrained(
                 LLM_MODEL_ID, 
                 torch_dtype=dtype,
+                low_cpu_mem_usage=True,
                 device_map="auto"
             )
             print("✅ LLM Transformers (CPU) cargado exitosamente!")
@@ -137,7 +140,20 @@ async def chat_generation(
             token_iterator = streamer
 
         try:
+            # Lista de tokens de parada manual para mayor seguridad
+            stop_words = ["<|im_end|>", "<|endoftext|>", "<|im_start|>", "assistant\n"]
+            
             for token_text in token_iterator:
+                # Si detectamos un stop word en el token, limpiamos y paramos
+                if any(sw in token_text for sw in stop_words):
+                    for sw in stop_words:
+                        token_text = token_text.replace(sw, "")
+                    if token_text:
+                        full_response += token_text
+                        current_buffer += token_text
+                        yield token_text
+                    break
+                    
                 full_response += token_text
                 current_buffer += token_text
                 yield token_text
@@ -263,7 +279,19 @@ async def chat_voice_to_voice(
             thread.start()
             token_iterator = streamer
 
+        stop_words = ["<|im_end|>", "<|endoftext|>", "<|im_start|>", "assistant\n"]
+        
         for token_text in token_iterator:
+            # Si detectamos un stop word en el token, limpiamos y paramos
+            if any(sw in token_text for sw in stop_words):
+                for sw in stop_words:
+                    token_text = token_text.replace(sw, "")
+                if token_text:
+                    full_response += token_text
+                    current_buffer += token_text
+                    yield token_text
+                break
+                
             full_response += token_text
             current_buffer += token_text
             yield token_text

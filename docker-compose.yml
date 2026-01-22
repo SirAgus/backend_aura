@@ -27,7 +27,13 @@ services:
       - TORCH_DEVICE=cpu
     depends_on:
       - db
-    # command: python main.py (Default from Dockerfile)
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --url http://backend:8000
+    restart: always
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from database import init_db
-from routers import users, chat, voice
+from routers import users, chat, voice, openai
 from dotenv import load_dotenv
 import os
 
@@ -97,6 +97,7 @@ def on_startup():
 app.include_router(users.router, tags=["Users & Auth"])
 app.include_router(chat.router, tags=["Chat & LLM"])
 app.include_router(voice.router, tags=["Voice & TTS"])
+app.include_router(openai.router, tags=["OpenAI Compatible API"])
 
 # Static for accessing outputs directly if needed
 # app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")

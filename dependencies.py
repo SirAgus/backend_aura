@@ -9,6 +9,7 @@ import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from jose import JWTError, jwt
+import secrets
 
 load_dotenv()
 
@@ -60,12 +61,24 @@ def create_refresh_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+def generate_api_key():
+    return f"sk-aura-{secrets.token_urlsafe(32)}"
+
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    # 1. Try Bearer Token (JWT)
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="No se pudieron validar las credenciales",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # Check if the token is an API key (sk-aura-...)
+    if token.startswith("sk-aura-"):
+        user = db.query(User).filter(User.api_key == token).first()
+        if user:
+            return user
+        raise credentials_exception
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")

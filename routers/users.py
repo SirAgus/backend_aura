@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.orm import Session
 from database import get_db, User
-from dependencies import get_current_user, create_access_token, create_refresh_token, get_password_hash, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES
+from dependencies import get_current_user, create_access_token, create_refresh_token, get_password_hash, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES, generate_api_key
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta, datetime
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ class UserOut(BaseModel):
     username: str
     email: str
     role: str = "usuario"
+    api_key: str | None = None
     default_voice_id: str | None = None
     created_at: datetime
     
@@ -122,6 +123,17 @@ def update_settings(settings: SettingsUpdate, db: Session = Depends(get_db), cur
         user.default_voice_id = settings.default_voice_id
     db.commit()
     return {"status": "configuración actualizada", "default_voice_id": user.default_voice_id}
+
+@router.post("/users/me/api-key")
+def create_api_key(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user = db.query(User).filter(User.id == current_user.id).first()
+    user.api_key = generate_api_key()
+    db.commit()
+    return {"api_key": user.api_key}
+
+@router.get("/users/me/api-key")
+def get_api_key(current_user: User = Depends(get_current_user)):
+    return {"api_key": current_user.api_key}
 
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

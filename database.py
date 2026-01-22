@@ -23,6 +23,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     role = Column(String, default="usuario")
+    api_key = Column(String, unique=True, index=True, nullable=True)
     default_voice_id = Column(String, ForeignKey("voices.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -91,6 +92,22 @@ class Message(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     thread = relationship("Thread", back_populates="messages")
+
+class MCPServer(Base):
+    """
+    Configuración de servidores MCP (Model Context Protocol).
+    """
+    __tablename__ = "mcp_servers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    type = Column(String) # 'stdio' or 'sse'
+    command = Column(String, nullable=True) # For stdio
+    args = Column(Text, nullable=True) # For stdio, JSON list
+    url = Column(String, nullable=True) # For sse
+    env = Column(Text, nullable=True) # JSON object
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 # Dependency
 def get_db():
